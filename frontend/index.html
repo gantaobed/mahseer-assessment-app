@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mahseer Risk Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #121212;
+            color: #ffffff;
+        }
+        
+        /* Map takes up the remaining space */
+        #map { 
+            height: 100vh; 
+            flex-grow: 1; 
+        }
+
+        /* The new analytics side panel */
+        #side-panel {
+            width: 380px;
+            height: 100vh;
+            background: #1e1e1e;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            overflow-y: auto;
+            padding: 25px;
+            box-sizing: border-box;
+            display: none; /* Hidden until a marker is clicked */
+            z-index: 1000;
+        }
+
+        .panel-header {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        /* Dynamic Status Banner */
+        .status-banner {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-weight: bold;
+            line-height: 1.4;
+        }
+        .status-green { background: rgba(46, 125, 50, 0.2); border-left: 5px solid #4caf50; color: #81c784; }
+        .status-yellow { background: rgba(249, 168, 37, 0.2); border-left: 5px solid #fbc02d; color: #fff59d; }
+        .status-red { background: rgba(198, 40, 40, 0.2); border-left: 5px solid #e53935; color: #ef9a9a; }
+
+        /* Metric Data Blocks */
+        .metric-group { margin-bottom: 20px; }
+        .metric-title { font-size: 0.85em; color: #aaaaaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .metric-value { font-size: 1.2em; font-weight: 500; }
+        .alert-text { color: #e53935; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    
+    <div id="side-panel">
+        <div id="panel-content">
+            <!-- Data will be injected here via Javascript -->
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([12.35, 77.20], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const zones = [
+          {
+            "zone_id": 8, "zone_name": "Sangama Confluence (Safe)",
+            "lat": 12.2743, "lng": 77.4431,
+            "current_data": { "flow_velocity_ms": 1.2, "substrate_weight": 1.0, "do_mg_l": 8.0, "temp_c": 22.0, "ph": 7.8, "ammonia_mg_l": 0.01, "sand_mining_present": false }
+          },
+          {
+            "zone_id": 9, "zone_name": "T. Narasipura (Critical)",
+            "lat": 12.1950, "lng": 76.9030,
+            "current_data": { "flow_velocity_ms": 1.2, "substrate_weight": 1.0, "do_mg_l": 8.0, "temp_c": 22.0, "ph": 7.8, "ammonia_mg_l": 0.01, "sand_mining_present": true }
+          },
+          {
+            "zone_id": 10, "zone_name": "Kanakapura Catchment",
+            "lat": 12.5450, "lng": 77.4200,
+            "current_data": { "flow_velocity_ms": 1.2, "substrate_weight": 1.0, "do_mg_l": 8.0, "temp_c": 22.0, "ph": 7.8, "ammonia_mg_l": 0.01, "sand_mining_present": false }
+          }
+        ];
+
+        zones.forEach(zone => {
+            fetch('http://127.0.0.1:8000/assess-zone', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    zone_id: zone.zone_id,
+                    zone_name: zone.zone_name,
+                    lat: zone.lat,
+                    lng: zone.lng,
+                    ...zone.current_data
+                })
+            })
+            .then(res => res.json())
+            .then(assessment => {
+                // 1. Draw the Marker
+                const markerColor = assessment.color; 
+                const marker = L.circleMarker([zone.lat, zone.lng], {
+                    color: markerColor, fillColor: markerColor, fillOpacity: 0.8, radius: 12
+                }).addTo(map);
+
+                // 2. Add Click Event to Open Side Panel
+                marker.on('click', () => {
+                    const panel = document.getElementById('side-panel');
+                    panel.style.display = 'block'; // Unhide the panel
+
+                    // Determine banner styling
+                    const bannerClass = markerColor === 'green' ? 'status-green' : markerColor === 'yellow' ? 'status-yellow' : 'status-red';
+                    
+                    // Format mining threat text
+                    const miningStatus = zone.current_data.sand_mining_present ? '<span class="alert-text">⚠️ ACTIVE (Veto Triggered)</span>' : 'None Detected';
+
+                    // 3. Inject Data into Panel
+                    document.getElementById('panel-content').innerHTML = `
+                        <div class="panel-header">${zone.zone_name}</div>
+                        
+                        <div class="status-banner ${bannerClass}">
+                            ${assessment.alert}
+                        </div>
+
+                        <div class="metric-group">
+                            <div class="metric-title">Hydrological Physics</div>
+                            <div class="metric-value">Flow: ${zone.current_data.flow_velocity_ms} m/s</div>
+                            <div class="metric-value">Substrate Mulitplier: ${zone.current_data.substrate_weight}x</div>
+                        </div>
+
+                        <div class="metric-group">
+                            <div class="metric-title">Water Chemistry</div>
+                            <div class="metric-value">DO: ${zone.current_data.do_mg_l} mg/L</div>
+                            <div class="metric-value">Temp: ${zone.current_data.temp_c}°C</div>
+                            <div class="metric-value">pH: ${zone.current_data.ph}</div>
+                        </div>
+
+                        <div class="metric-group">
+                            <div class="metric-title">Human Threat Vectors</div>
+                            <div class="metric-value">Sand Mining: ${miningStatus}</div>
+                        </div>
+                    `;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
