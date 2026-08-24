@@ -130,11 +130,11 @@
                 </div>
 
                 <div class="metric-group">
-                    <div class="metric-title">Live Internet Telemetry (Open-Meteo)</div>
-                    <div class="metric-value">Water/Air Temp: ${liveInfo.temp_c || 22}°C (Ideal: 18-24°C)</div>
-                    <div class="metric-value">Dissolved Oxygen (DO): ${liveInfo.do_mg_l || 7.8} mg/L (Min: >5.0)</div>
+                    <div class="metric-title">Live Environmental Telemetry (Open-Meteo)</div>
+                    <div class="metric-value">Bed Water Temp: ${liveInfo.temp_c || 22}°C (Ideal: 18-24°C)</div>
+                    <div class="metric-value">Oxygen Solubility (DO): ${liveInfo.do_mg_l || 7.8} mg/L (Min: >7.5)</div>
+                    <div class="metric-value">River Flow Velocity: ${liveInfo.flow || 1.1} m/s</div>
                     <div class="metric-value">Precipitation: ${liveInfo.rainfall_mm || 0} mm</div>
-                    <div class="metric-value">Flow Velocity: ${liveInfo.flow || 1.1} m/s</div>
                     <div class="metric-value">Acidity (pH): ${liveInfo.ph || 7.8}</div>
                 </div>
 
