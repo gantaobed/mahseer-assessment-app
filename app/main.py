@@ -189,3 +189,79 @@ frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "f
 @app.get("/")
 async def read_index():
     return FileResponse(os.path.join(frontend_path, "index.html"))
+
+@app.get("/history-view")
+async def history_view():
+    conn = sqlite3.connect("habitat_history.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT timestamp, zone_name, status_color, alert_message FROM assessments ORDER BY id DESC LIMIT 100")
+    logs = cursor.fetchall()
+    conn.close()
+
+    html_content = """
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body { font-family: sans-serif; background: #121212; color: white; padding: 20px; }
+            .log-card { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #444; }
+            .green { border-left-color: #4caf50; } .yellow { border-left-color: #fbc02d; } .red { border-left-color: #e53935; }
+            .timestamp { color: #888; font-size: 0.8em; }
+            .footer { text-align: center; margin-top: 30px; font-size: 0.8em; color: #555; }
+        </style>
+    </head>
+    <body>
+        <h2>Assessment History Logs</h2>
+    """
+    for log in logs:
+        html_content += f"""
+        <div class="log-card {log[2]}">
+            <div class="timestamp">{log[0]}</div>
+            <strong>{log[1]}</strong><br>
+            <small>{log[3]}</small>
+        </div>
+        """
+    html_content += """
+        <div class="footer">© Developed by Ganta Obed</div>
+    </body></html>
+    """
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=html_content)
+
+@app.get("/species-info")
+async def species_info():
+    html_content = """
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body { font-family: sans-serif; background: #121212; color: white; padding: 20px; line-height: 1.6; }
+            .info-card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; }
+            h2 { color: #3b82f6; }
+            .tag { background: #3b82f6; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+            .footer { text-align: center; margin-top: 30px; font-size: 0.8em; color: #555; }
+        </style>
+    </head>
+    <body>
+        <h2>Mahseer Spawning Intelligence</h2>
+
+        <div class="info-card">
+            <h3>🌊 Flow Dynamics</h3>
+            <p>Mahseer require specific flow velocities (0.8 - 1.5 m/s) to ensure eggs are oxygenated but not washed away. High siltation from mining acts as a "suffocator" for the gravel beds.</p>
+        </div>
+
+        <div class="info-card">
+            <h3>🌡️ Thermal Thresholds</h3>
+            <p>Ideal spawning temperature is between <span class="tag">18°C - 24°C</span>. Temperatures above 28°C significantly reduce hatching success and increase fungal infections.</p>
+        </div>
+
+        <div class="info-card">
+            <h3>🧪 Bio-Chemical Vetoes</h3>
+            <p>Dissolved Oxygen (DO) must remain above 7.5 mg/L. Ammonia levels exceeding 0.05 mg/L are lethal to developing fry.</p>
+        </div>
+
+        <div class="footer">© Developed by Ganta Obed</div>
+    </body></html>
+    """
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=html_content)

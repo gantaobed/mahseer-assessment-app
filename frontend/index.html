@@ -64,24 +64,8 @@
 
     <div class="instruction-box">💡 Click anywhere on the map to evaluate Mahseer spawning potential using live internet weather telemetry.</div>
     
-    <div style="position: absolute; bottom: 20px; left: 20px; z-index: 1000; display: flex; gap: 10px;">
-        <button class="btn" style="width: auto;" onclick="openHistoryModal()">📊 View Database History</button>
-        <a href="/export-csv" class="btn btn-secondary" style="width: auto;">📥 Export CSV Report</a>
-    </div>
-
     <div id="map"></div>
     <div id="side-panel"><div id="panel-content"></div></div>
-
-    <!-- History Modal -->
-    <div id="history-modal" onclick="closeHistoryModal(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2>Database Assessment Logs</h2>
-                <button class="btn btn-secondary" style="width: auto; padding: 5px 10px;" onclick="closeHistoryModal()">Close</button>
-            </div>
-            <div id="history-list">Loading history...</div>
-        </div>
-    </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
