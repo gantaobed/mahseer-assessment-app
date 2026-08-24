@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Mahseer Spawning Intelligence Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
         body { 
@@ -86,13 +86,18 @@
                     color: markerColor, fillColor: markerColor, fillOpacity: 0.8, radius: 12
                 }).addTo(map);
 
-                marker.on('click', () => {
+                // Auto-open panel for new markers
+                openPanel(zone, assessment, markerColor);
+
+                marker.on('click', (e) => {
+                    L.DomEvent.stopPropagation(e);
                     openPanel(zone, assessment, markerColor);
                 });
             });
         }
 
         function fetchAssessment(zone, callback) {
+            console.log("Fetching assessment for:", zone.zone_name);
             fetch('/assess-zone', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -104,9 +109,17 @@
                     ...zone.current_data
                 })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
             .then(assessment => {
+                console.log("Assessment received:", assessment);
                 callback(assessment, assessment.color);
+            })
+            .catch(error => {
+                console.error('Error fetching assessment:', error);
+                alert("Failed to fetch assessment data. Please check your internet connection.");
             });
         }
 
@@ -118,8 +131,11 @@
             const liveInfo = assessment.live_fetched_data || {};
 
             document.getElementById('panel-content').innerHTML = `
-                <div class="panel-header">${zone.zone_name}</div>
-                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="panel-header" style="margin-bottom: 0;">${zone.zone_name}</div>
+                    <button onclick="document.getElementById('side-panel').style.display='none'" style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer;">✕</button>
+                </div>
+                <br>
                 <div class="status-banner ${bannerClass}" id="panel-alert">
                     ${assessment.alert}
                 </div>
