@@ -21,21 +21,24 @@ app.add_middleware(
 )
 
 def init_db():
-    conn = sqlite3.connect("habitat_history.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS assessments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            zone_id INTEGER,
-            zone_name TEXT,
-            status_color TEXT,
-            rainfall_mm REAL,
-            alert_message TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect("habitat_history.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                zone_id INTEGER,
+                zone_name TEXT,
+                status_color TEXT,
+                rainfall_mm REAL,
+                alert_message TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"❌ DATABASE ERROR: {e}")
 
 init_db()
 
