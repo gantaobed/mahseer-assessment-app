@@ -1,247 +1,158 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mahseer Spawning Intelligence Dashboard</title>
+    <title>Mahseer Spawning Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     <style>
-        body { 
-            margin: 0; padding: 0; display: flex; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #121212; color: #ffffff; 
-            font-size: 16px;
-        }
-        #map { height: 100vh; flex-grow: 1; }
-        #side-panel {
-            width: 420px; height: 100vh; background: #1e1e1e;
-            box-shadow: -5px 0 15px rgba(0,0,0,0.5); overflow-y: auto;
-            padding: 25px; box-sizing: border-box; display: none; z-index: 1000;
-        }
-
-        /* Mobile Responsive Override */
-        @media (max-width: 600px) {
-            body { font-size: 18px; }
-            #side-panel {
-                width: 100%; height: 60vh; position: fixed; bottom: 0; left: 0;
-                box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
-                padding: 20px;
-            }
-            .instruction-box { display: none; }
-            .panel-header { font-size: 1.6em; }
-            .metric-title { font-size: 0.9em; }
-            .metric-value { font-size: 1.2em; }
-            .status-banner { font-size: 1.1em; }
-            .checkbox-label { font-size: 1.1em; padding: 5px 0; }
-        }
-        .panel-header { font-size: 1.4em; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #333; }
-        .status-banner { padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; line-height: 1.4; font-size: 0.95em; }
-        .status-green { background: rgba(46, 125, 50, 0.2); border-left: 5px solid #4caf50; color: #81c784; }
-        .status-yellow { background: rgba(249, 168, 37, 0.2); border-left: 5px solid #fbc02d; color: #fff59d; }
-        .status-red { background: rgba(198, 40, 40, 0.2); border-left: 5px solid #e53935; color: #ef9a9a; }
-        .metric-group { margin-bottom: 15px; background: #252525; padding: 12px; border-radius: 6px; }
-        .metric-title { font-size: 0.8em; color: #aaaaaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .metric-value { font-size: 1.1em; font-weight: 500; }
-        .alert-text { color: #e53935; font-weight: bold; }
-        .instruction-box {
-            position: absolute; top: 15px; right: 440px; background: rgba(30, 30, 30, 0.9);
-            padding: 10px 15px; border-radius: 8px; z-index: 1000; font-size: 0.9em; border: 1px solid #444; pointer-events: none;
-        }
-        .controls-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.95em; cursor: pointer; }
-        .btn { background: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; text-align: center; display: block; text-decoration: none; }
-        .btn:hover { background: #2563eb; }
-        .btn-secondary { background: #4b5563; }
-        .btn-secondary:hover { background: #374151; }
-        #history-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;
-        }
-        .modal-content { background: #1e1e1e; width: 80%; max-height: 80vh; border-radius: 8px; padding: 25px; overflow-y: auto; border: 1px solid #444; }
-        .history-item { padding: 10px; border-bottom: 1px solid #333; font-size: 0.9em; margin-bottom: 8px; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; }
+        #map { height: 100vh; width: 100vw; }
+        #side-panel { width: 100%; height: 75vh; position: fixed; bottom: 0; left: 0; background: #1e1e1e; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); overflow-y: auto; padding: 20px; box-sizing: border-box; display: none; z-index: 1000; border-radius: 20px 20px 0 0; }
+        .panel-header { font-size: 1.4em; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; }
+        .status-banner { padding: 12px; border-radius: 8px; margin: 15px 0; font-weight: bold; }
+        .status-green { background: rgba(76, 175, 80, 0.2); border-left: 5px solid #4caf50; color: #81c784; }
+        .status-yellow { background: rgba(255, 193, 7, 0.2); border-left: 5px solid #ffc107; color: #ffe082; }
+        .status-red { background: rgba(244, 67, 54, 0.2); border-left: 5px solid #f44336; color: #ef9a9a; }
+        .btn { background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .lang-bar { position: absolute; top: 10px; left: 50px; z-index: 1000; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 20px; display: flex; gap: 5px; }
+        .lang-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 0.8em; padding: 5px 10px; border-radius: 15px; }
+        .lang-btn.active { background: #3b82f6; color: white; }
+        .map-controls { position: absolute; top: 60px; left: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
+        .control-btn { background: #1e1e1e; color: white; border: 1px solid #444; padding: 10px; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: #1e1e1e; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #333; color: white; border: 1px solid #444; border-radius: 8px; box-sizing: border-box; }
+        .chart-container { height: 180px; margin-top: 10px; display: none; }
+        .favorite-spot { display: flex; align-items: center; gap: 10px; background: #252525; padding: 10px; border-radius: 8px; margin-top: 10px; }
     </style>
 </head>
 <body>
+    <div class="lang-bar">
+        <button class="lang-btn active" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" onclick="setLang('kn')">ಕನ್ನಡ</button>
+        <button class="lang-btn" onclick="setLang('hi')">हिंदी</button>
+    </div>
 
-    <div class="instruction-box">💡 Click anywhere on the map to evaluate Mahseer spawning potential using live internet weather telemetry.</div>
-    
+    <div class="map-controls">
+        <button class="control-btn" onclick="toggleHeatmap()">🔥 Heatmap</button>
+        <button class="control-btn" onclick="showFavorites()">⭐ My Spots</button>
+    </div>
+
     <div id="map"></div>
     <div id="side-panel"><div id="panel-content"></div></div>
 
+    <div id="modal">
+        <div class="modal-content">
+            <h3 id="modal-title">🚨 Report Incident</h3>
+            <select id="report-category">
+                <option value="Sand Mining">Sand Mining</option>
+                <option value="Pollution">Pollution</option>
+                <option value="Illegal Fishing">Illegal Fishing</option>
+            </select>
+            <textarea id="report-desc" placeholder="Details..."></textarea>
+            <input type="file" id="report-image" accept="image/*" capture="camera">
+            <button class="btn" onclick="submitReport()">Submit</button>
+            <button class="btn" style="background:#444" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        const map = L.map('map').setView([11.8, 77.2], 8);
+        const map = L.map('map').setView([12.2, 77.4], 9);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let currentLat, currentLng, myChart, heatLayer, currentLang = 'en';
 
-        const initialZones = [
-          { zone_id: 8, zone_name: "Sangama Confluence (Predictive Risk)", lat: 12.2743, lng: 77.4431, current_data: { sand_mining_present: false, upstream_mining_active: true } },
-          { zone_id: 9, zone_name: "T. Narasipura (Critical Mining)", lat: 12.1950, lng: 76.9030, current_data: { sand_mining_present: true, upstream_mining_active: false } },
-          { zone_id: 10, zone_name: "Kanakapura Catchment", lat: 12.5450, lng: 77.4200, current_data: { sand_mining_present: false, upstream_mining_active: false } },
-          { zone_id: 11, zone_name: "Moyar River Valley (Pristine)", lat: 11.5500, lng: 76.9500, current_data: { sand_mining_present: false, upstream_mining_active: false } },
-          { zone_id: 12, zone_name: "Pambar Tributary (Kerala)", lat: 10.2800, lng: 77.2600, current_data: { sand_mining_present: false, upstream_mining_active: false } }
-        ];
+        const i18n = {
+            en: { report: "Report Incident", trends: "View 24h Trends", save: "Save this Spot", msg: "Success", details: "Details..." },
+            kn: { report: "ವರದಿ ಮಾಡಿ", trends: "24 ಗಂಟೆಗಳ ಪ್ರವೃತ್ತಿ", save: "ಈ ಸ್ಥಳವನ್ನು ಉಳಿಸಿ", msg: "ಯಶಸ್ವಿಯಾಗಿದೆ", details: "ವಿವರಗಳು..." },
+            hi: { report: "रिपोर्ट करें", trends: "24 घंटे का रुझान", save: "इस जगह को सेव करें", msg: "सफल", details: "विवರಣ..." }
+        };
 
-        function renderMarker(zone) {
-            fetchAssessment(zone, (assessment, markerColor) => {
-                const marker = L.circleMarker([zone.lat, zone.lng], {
-                    color: markerColor, fillColor: markerColor, fillOpacity: 0.8, radius: 12
-                }).addTo(map);
+        function setLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            alert(`Language switched to ${lang.toUpperCase()}`);
+        }
 
-                // Auto-open panel for new markers
-                openPanel(zone, assessment, markerColor);
-
-                marker.on('click', (e) => {
-                    L.DomEvent.stopPropagation(e);
-                    openPanel(zone, assessment, markerColor);
-                });
+        function toggleHeatmap() {
+            if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; return; }
+            fetch('/get-heatmap').then(res => res.json()).then(data => {
+                heatLayer = L.heatLayer(data.points, { radius: 25, blur: 15, maxZoom: 10 }).addTo(map);
             });
         }
 
-        function fetchAssessment(zone, callback) {
-            console.log("Fetching assessment for:", zone.zone_name);
-            fetch('/assess-zone', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    zone_id: zone.zone_id,
-                    zone_name: zone.zone_name,
-                    lat: zone.lat,
-                    lng: zone.lng,
-                    ...zone.current_data
-                })
-            })
-            .then(res => {
-                if (!res.ok) {
-                    return res.text().then(text => {
-                        throw new Error(`Server Error (${res.status}): ${text}`);
-                    });
-                }
-                return res.json();
-            })
-            .then(assessment => {
-                console.log("Assessment received:", assessment);
-                callback(assessment, assessment.color);
-            })
-            .catch(error => {
-                console.error('Error fetching assessment:', error);
-                alert(`Error: ${error.message}\n\nHint: If the server was sleeping, please wait 30 seconds and try again.`);
-            });
+        map.on('click', (e) => {
+            currentLat = e.latlng.lat; currentLng = e.latlng.lng;
+            const zone = { zone_id: Date.now(), zone_name: `Point ${currentLat.toFixed(2)}`, lat: currentLat, lng: currentLng, current_data: {} };
+            L.circleMarker([currentLat, currentLng], { radius: 8, color: '#3b82f6' }).addTo(map);
+            fetchAssessment(zone);
+        });
+
+        function fetchAssessment(zone) {
+            fetch('/assess-zone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(zone) })
+            .then(res => res.json()).then(data => openPanel(zone, data));
         }
 
-        function openPanel(zone, assessment, markerColor) {
+        function openPanel(zone, data) {
             const panel = document.getElementById('side-panel');
             panel.style.display = 'block';
-
-            const bannerClass = markerColor === 'green' ? 'status-green' : markerColor === 'yellow' ? 'status-yellow' : 'status-red';
-            const liveInfo = assessment.live_fetched_data || {};
-
+            const live = data.live_fetched_data;
+            const t = i18n[currentLang];
             document.getElementById('panel-content').innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div class="panel-header" style="margin-bottom: 0;">${zone.zone_name}</div>
-                    <button onclick="document.getElementById('side-panel').style.display='none'" style="background: none; border: none; color: white; font-size: 1.5em; cursor: pointer;">✕</button>
-                </div>
-                <br>
-                <div class="status-banner ${bannerClass}" id="panel-alert">
-                    ${assessment.alert}
-                </div>
-
-                <div class="metric-group">
-                    <div class="metric-title">Location Coordinates</div>
-                    <div class="metric-value">Lat: ${zone.lat.toFixed(4)}, Lng: ${zone.lng.toFixed(4)}</div>
-                </div>
-
-                <div class="metric-group">
-                    <div class="metric-title">Live Environmental Telemetry (Open-Meteo)</div>
-                    <div class="metric-value">Bed Water Temp: ${liveInfo.temp_c || 22}°C (Ideal: 18-24°C)</div>
-                    <div class="metric-value">Oxygen Solubility (DO): ${liveInfo.do_mg_l || 7.8} mg/L (Min: >7.5)</div>
-                    <div class="metric-value">River Flow Velocity: ${liveInfo.flow || 1.1} m/s</div>
-                    <div class="metric-value">Precipitation: ${liveInfo.rainfall_mm || 0} mm</div>
-                    <div class="metric-value">Acidity (pH): ${liveInfo.ph || 7.8}</div>
-                </div>
-
-                <div class="metric-group">
-                    <div class="metric-title">Interactive Threat Simulation Controls</div>
-                    <div class="controls-container">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="toggle-mining" ${zone.current_data.sand_mining_present ? 'checked' : ''} onchange="updateThreats(${zone.lat}, ${zone.lng}, '${zone.zone_name}', ${zone.zone_id})">
-                            Active Local Sand Mining (Bed Destruction)
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="toggle-upstream" ${zone.current_data.upstream_mining_active ? 'checked' : ''} onchange="updateThreats(${zone.lat}, ${zone.lng}, '${zone.zone_name}', ${zone.zone_id})">
-                            Active Upstream Extraction (Silt Drift)
-                        </label>
-                    </div>
-                </div>
+                <div class="panel-header">${zone.zone_name} <span onclick="this.parentElement.parentElement.parentElement.style.display='none'">✕</span></div>
+                <div class="status-banner ${data.color === 'green' ? 'status-green' : data.color === 'yellow' ? 'status-yellow' : 'status-red'}">${data.alert}</div>
+                <button class="btn" onclick="showTrends()">📈 ${t.trends}</button>
+                <div class="chart-container" id="chartDiv"><canvas id="trendChart"></canvas></div>
+                <button class="btn" style="background:#4caf50" onclick="saveSpot('${zone.zone_name}')">⭐ ${t.save}</button>
+                <button class="btn" style="background:#e53935" onclick="document.getElementById('modal').style.display='flex'">🚨 ${t.report}</button>
             `;
         }
 
-        function updateThreats(lat, lng, zoneName, zoneId) {
-            const miningPresent = document.getElementById('toggle-mining').checked;
-            const upstreamActive = document.getElementById('toggle-upstream').checked;
+        function saveSpot(name) {
+            let spots = JSON.parse(localStorage.getItem('fav_spots') || '[]');
+            spots.push({ name, lat: currentLat, lng: currentLng });
+            localStorage.setItem('fav_spots', JSON.stringify(spots));
+            alert("Spot saved to 'My Spots'!");
+        }
 
-            const updatedZone = {
-                zone_id: zoneId,
-                zone_name: zoneName,
-                lat: lat,
-                lng: lng,
-                current_data: {
-                    sand_mining_present: miningPresent,
-                    upstream_mining_active: upstreamActive,
-                    substrate_weight: 1.0
-                }
-            };
+        function showFavorites() {
+            let spots = JSON.parse(localStorage.getItem('fav_spots') || '[]');
+            if (spots.length === 0) { alert("No saved spots yet. Click the map and click 'Save Spot'!"); return; }
+            let list = spots.map(s => `<li>${s.name} (${s.lat.toFixed(2)})</li>`).join('');
+            alert(`My Saved Spots:\n${spots.map(s => s.name).join('\n')}`);
+        }
 
-            fetch('/assess-zone', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(updatedZone)
-            })
-            .then(res => res.json())
-            .then(newAssessment => {
-                const banner = document.getElementById('panel-alert');
-                const markerColor = newAssessment.color;
-                banner.className = `status-banner ${markerColor === 'green' ? 'status-green' : markerColor === 'yellow' ? 'status-yellow' : 'status-red'}`;
-                banner.innerHTML = newAssessment.alert;
+        function showTrends() {
+            document.getElementById('chartDiv').style.display = 'block';
+            fetch(`/get-trends?lat=${currentLat}&lng=${currentLng}`).then(res => res.json()).then(data => {
+                const ctx = document.getElementById('trendChart').getContext('2d');
+                if (myChart) myChart.destroy();
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{ label: 'Temp', data: data.temp_data, borderColor: '#ff9800' }, { label: 'DO', data: data.do_data, borderColor: '#2196f3' }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
             });
         }
 
-        initialZones.forEach(zone => renderMarker(zone));
-
-        map.on('click', (e) => {
-            const customLat = e.latlng.lat;
-            const customLng = e.latlng.lng;
-            const dynamicZone = {
-                zone_id: Math.floor(Math.random() * 9000) + 1000,
-                zone_name: `Spawning Point (${customLat.toFixed(2)}, ${customLng.toFixed(2)})`,
-                lat: customLat,
-                lng: customLng,
-                current_data: { sand_mining_present: false, upstream_mining_active: false }
-            };
-            renderMarker(dynamicZone);
-        });
-
-        function openHistoryModal() {
-            document.getElementById('history-modal').style.display = 'flex';
-            fetch('/history')
-                .then(res => res.json())
-                .then(data => {
-                    const listContainer = document.getElementById('history-list');
-                    if (data.history.length === 0) {
-                        listContainer.innerHTML = '<p>No records found in database.</p>';
-                        return;
-                    }
-                    listContainer.innerHTML = data.history.map(item => `
-                        <div class="history-item">
-                            <strong>[${item.timestamp}]</strong> ${item.zone_name} — 
-                            <span style="color: ${item.status_color === 'green' ? '#4caf50' : item.status_color === 'yellow' ? '#fbc02d' : '#e53935'}; text-transform: uppercase; font-weight: bold;">${item.status_color}</span> 
-                            (Rain: ${item.rainfall_mm}mm)
-                        </div>
-                    `).join('');
-                });
+        function submitReport() {
+            const formData = new FormData();
+            formData.append('lat', currentLat); formData.append('lng', currentLng);
+            formData.append('category', document.getElementById('report-category').value);
+            formData.append('description', document.getElementById('report-desc').value);
+            const img = document.getElementById('report-image').files[0];
+            if (img) formData.append('image', img);
+            fetch('/report-incident', { method: 'POST', body: formData }).then(res => res.json()).then(d => {
+                alert(d.message); document.getElementById('modal').style.display = 'none';
+            });
         }
-
-        function closeHistoryModal() {
-            document.getElementById('history-modal').style.display = 'none';
-        }
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
     </script>
 </body>
 </html>
