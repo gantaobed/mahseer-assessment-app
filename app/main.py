@@ -71,7 +71,8 @@ def fetch_live_environmental_data(lat: float, lng: float):
             w_data = w_res.json()
             results["temp"] = w_data.get("current", {}).get("temperature_2m", 24.0)
             results["soil_temp"] = w_data.get("current", {}).get("soil_temperature_0_to_7cm", 22.0)
-            results["rain"] = w_data.get("daily", {}).get("precipitation_sum", [0.0])[0]
+            rain_list = w_data.get("daily", {}).get("precipitation_sum", [0.0])
+            results["rain"] = rain_list[0] if rain_list and len(rain_list) > 0 else 0.0
             results["fetched"] = True
 
         # 2. Fetch River Discharge (Flow) Data
@@ -80,7 +81,8 @@ def fetch_live_environmental_data(lat: float, lng: float):
             f_data = f_res.json()
             # Get today's estimated river discharge in m3/s
             discharges = f_data.get("daily", {}).get("river_discharge", [1.0])
-            results["discharge"] = discharges[0] if discharges[0] is not None else 1.0
+            if discharges and len(discharges) > 0:
+                results["discharge"] = discharges[0] if discharges[0] is not None else 1.0
 
     except Exception as e:
         print(f"⚠️ DATA FETCH ERROR: {e}")
@@ -89,78 +91,90 @@ def fetch_live_environmental_data(lat: float, lng: float):
 
 @app.post("/assess-zone")
 def assess_habitat(data: EnvironmentData):
-    # --- 1. SCIENTIFIC DATA ACQUISITION ---
-    env = fetch_live_environmental_data(data.lat, data.lng)
-    
-    # Real-world data mapping
-    data.temp_c = env["soil_temp"] # Soil temp at 0-7cm is a better proxy for shallow river beds
-    data.rainfall_mm_day = env["rain"]
-    
-    # Flow Velocity Calculation (Scientific Approximation)
-    # Based on river discharge (m3/s). Typical spawning streams are 0.5-2.0m deep.
-    # Velocity approx = Discharge / (Width * Depth). Using a regional stream average for dynamic estimation.
-    data.flow_velocity_ms = round(min(2.5, (env["discharge"] ** 0.4) * 0.5), 2)
-
-    # Dissolved Oxygen (DO) Calculation (Henry's Law approximation)
-    # Oxygen solubility decreases as water temperature rises.
-    data.do_mg_l = round(14.62 - (0.39 * data.temp_c) + (0.005 * (data.temp_c**2)), 1)
-
-    data.ph = 7.8 # Baseline for Deccan/Himalayan river systems
-
-    source_tag = "📡 [Real-Time Global Telemetry Synced]" if env["fetched"] else "⚠️ [Predictive Modeling Active]"
-
-    # --- 2. STRICT BIO-CHEMICAL VETO RULES ---
-    if data.do_mg_l < 5.0:
-        color, alert = "red", f"CRITICAL: Lethal Low Oxygen ({data.do_mg_l} mg/L). Embryos suffocate. {source_tag}"
-    elif data.temp_c > 28.0:
-        color, alert = "red", f"CRITICAL: Thermal Spike ({data.temp_c}°C). Ideal spawning is 18-24°C. {source_tag}"
-    elif data.ph < 6.5:
-        color, alert = "red", f"CRITICAL: Acidic Danger (pH {data.ph}). Egg walls disintegrate. {source_tag}"
-    elif data.ammonia_mg_l > 0.05:
-        color, alert = "red", f"CRITICAL: Toxic Ammonia ({data.ammonia_mg_l} mg/L). Fatal to fry. {source_tag}"
-    elif data.sand_mining_present:
-        color, alert = "red", f"CRITICAL: Active Sand Mining. Gravel beds destroyed. {source_tag}"
-    elif data.flow_velocity_ms < 0.3 or data.flow_velocity_ms > 2.2:
-        color, alert = "red", f"CRITICAL: Lethal Flow Velocity ({data.flow_velocity_ms} m/s). {source_tag}"
-    else:
-        # --- 3. HABITAT SUITABILITY INDEX (HSI) ---
-        # Scoring based on Optimal Range: Flow (0.8-1.5), Temp (20-24)
-        score = 0
-        if 0.8 <= data.flow_velocity_ms <= 1.5: score += 2
-        if 20 <= data.temp_c <= 24: score += 2
+    try:
+        # --- 1. SCIENTIFIC DATA ACQUISITION ---
+        env = fetch_live_environmental_data(data.lat, data.lng)
         
-        # --- 4. WEATHER & RUNOFF DYNAMICS ---
-        if data.rainfall_mm_day > 40.0:
-            color, alert = "red", f"🔴 UNSUITABLE: Extreme Flash Flood Risk ({data.rainfall_mm_day}mm rain). Eggs will wash away. {source_tag}"
-        elif score >= 3:
-            color, alert = "green", f"🟢 PRIME SPAWNING ZONE: Optimal chemical & physical habitat. {source_tag}"
-        elif score >= 1:
-            color, alert = "yellow", f"🟡 MARGINAL ZONE: Suboptimal conditions detected. {source_tag}"
+        # Real-world data mapping with safety defaults
+        data.temp_c = env.get("soil_temp", 22.0)
+        data.rainfall_mm_day = env.get("rain", 0.0)
+
+        # Flow Velocity Calculation (Scientific Approximation)
+        # Velocity approx = Discharge / (Width * Depth).
+        discharge = max(0.1, env.get("discharge", 1.0))
+        data.flow_velocity_ms = round(min(2.5, (discharge ** 0.4) * 0.5), 2)
+
+        # Dissolved Oxygen (DO) Calculation (Henry's Law approximation)
+        temp = max(0, data.temp_c)
+        data.do_mg_l = round(14.62 - (0.39 * temp) + (0.005 * (temp**2)), 1)
+
+        data.ph = 7.8
+
+        source_tag = "📡 [Real-Time Global Telemetry Synced]" if env.get("fetched") else "⚠️ [Predictive Modeling Active]"
+
+        # --- 2. STRICT BIO-CHEMICAL VETO RULES ---
+        if data.do_mg_l < 5.0:
+            color, alert = "red", f"CRITICAL: Lethal Low Oxygen ({data.do_mg_l} mg/L). Embryos suffocate. {source_tag}"
+        elif data.temp_c > 28.0:
+            color, alert = "red", f"CRITICAL: Thermal Spike ({data.temp_c}°C). Ideal spawning is 18-24°C. {source_tag}"
+        elif data.ph < 6.5:
+            color, alert = "red", f"CRITICAL: Acidic Danger (pH {data.ph}). Egg walls disintegrate. {source_tag}"
+        elif data.ammonia_mg_l > 0.05:
+            color, alert = "red", f"CRITICAL: Toxic Ammonia ({data.ammonia_mg_l} mg/L). Fatal to fry. {source_tag}"
+        elif data.sand_mining_present:
+            color, alert = "red", f"CRITICAL: Active Sand Mining. Gravel beds destroyed. {source_tag}"
+        elif data.flow_velocity_ms < 0.3 or data.flow_velocity_ms > 2.2:
+            color, alert = "red", f"CRITICAL: Lethal Flow Velocity ({data.flow_velocity_ms} m/s). {source_tag}"
         else:
-            color, alert = "red", f"🔴 UNSUITABLE HABITAT: Environmental stress detected. {source_tag}"
+            # --- 3. HABITAT SUITABILITY INDEX (HSI) ---
+            score = 0
+            if 0.8 <= data.flow_velocity_ms <= 1.5: score += 2
+            if 20 <= data.temp_c <= 24: score += 2
 
-    # --- LOG TO SQLITE DATABASE ---
-    conn = sqlite3.connect("habitat_history.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO assessments (timestamp, zone_id, zone_name, status_color, rainfall_mm, alert_message)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), data.zone_id, data.zone_name, color, data.rainfall_mm_day, alert))
-    conn.commit()
-    conn.close()
+            # --- 4. WEATHER & RUNOFF DYNAMICS ---
+            if data.rainfall_mm_day > 40.0:
+                color, alert = "red", f"🔴 UNSUITABLE: Extreme Flash Flood Risk ({data.rainfall_mm_day}mm rain). Eggs will wash away. {source_tag}"
+            elif score >= 3:
+                color, alert = "green", f"🟢 PRIME SPAWNING ZONE: Optimal chemical & physical habitat. {source_tag}"
+            elif score >= 1:
+                color, alert = "yellow", f"🟡 MARGINAL ZONE: Suboptimal conditions detected. {source_tag}"
+            else:
+                color, alert = "red", f"🔴 UNSUITABLE HABITAT: Environmental stress detected. {source_tag}"
 
-    return {
-        "color": color, 
-        "alert": alert, 
-        "live_fetched_data": {
-            "temp_c": data.temp_c, 
-            "rainfall_mm": data.rainfall_mm_day, 
-            "flow": data.flow_velocity_ms, 
-            "do_mg_l": data.do_mg_l, 
-            "ph": data.ph,
-            "internet_synced": fetched_live
+        # --- LOG TO SQLITE DATABASE ---
+        try:
+            conn = sqlite3.connect("habitat_history.db")
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO assessments (timestamp, zone_id, zone_name, status_color, rainfall_mm, alert_message)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), data.zone_id, data.zone_name, color, data.rainfall_mm_day, alert))
+            conn.commit()
+            conn.close()
+        except Exception as db_err:
+            print(f"Database logging failed: {db_err}")
+
+        return {
+            "color": color,
+            "alert": alert,
+            "live_fetched_data": {
+                "temp_c": data.temp_c,
+                "rainfall_mm": data.rainfall_mm_day,
+                "flow": data.flow_velocity_ms,
+                "do_mg_l": data.do_mg_l,
+                "ph": data.ph,
+                "internet_synced": env.get("fetched", False)
+            }
         }
-    }
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"❌ SERVER CRASH: {error_details}")
+        return {
+            "color": "red",
+            "alert": f"⚠️ INTERNAL ENGINE ERROR: {str(e)}. Please try a different location.",
+            "live_fetched_data": {}
+        }
 
 @app.get("/history")
 def get_assessment_history():
