@@ -95,7 +95,7 @@
             })
             .catch(err => {
                 console.error("Assessment fetch error:", err);
-                alert("Critical: Could not connect to the Sentinel engine. Please check internet.");
+                alert(`Critical: ${err.message}\n\nNote: If the server was sleeping, it may take 30-60 seconds to wake up. Please wait a moment and try clicking again.`);
             });
         });
     </script>
