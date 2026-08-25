@@ -25,11 +25,27 @@ PROTECTED_ZONES = [
 ]
 
 def init_db():
-    conn = sqlite3.connect("habitat_history.db")
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS assessments (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, lat REAL, lng REAL, status_color TEXT, alert TEXT, temp REAL, oxygen REAL, mining REAL, ph REAL, turbidity REAL, fragmentation REAL)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS mining_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, lat REAL, lng REAL, description TEXT, level TEXT, verified INTEGER DEFAULT 0)")
-    conn.commit(); conn.close()
+    try:
+        conn = sqlite3.connect("habitat_history.db")
+        cursor = conn.cursor()
+        # Create tables with full schema
+        cursor.execute("CREATE TABLE IF NOT EXISTS assessments (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, lat REAL, lng REAL, status_color TEXT, alert TEXT, temp REAL, oxygen REAL, mining REAL, ph REAL, turbidity REAL, fragmentation REAL)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS mining_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, lat REAL, lng REAL, description TEXT, level TEXT, verified INTEGER DEFAULT 0)")
+
+        # Migration: Ensure 'lat' column exists if the table was created with an old schema
+        cursor.execute("PRAGMA table_info(assessments)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if 'lat' not in columns:
+            cursor.execute("ALTER TABLE assessments ADD COLUMN lat REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE assessments ADD COLUMN lng REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE assessments ADD COLUMN mining REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE assessments ADD COLUMN ph REAL DEFAULT 7.8")
+            cursor.execute("ALTER TABLE assessments ADD COLUMN turbidity REAL DEFAULT 0")
+            cursor.execute("ALTER TABLE assessments ADD COLUMN fragmentation REAL DEFAULT 0")
+
+        conn.commit(); conn.close()
+    except Exception as e:
+        print(f"❌ DATABASE INIT ERROR: {e}")
 
 init_db()
 
