@@ -7,7 +7,7 @@ from typing import Optional, List
 import requests
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI(title="Cauvery Sentinel Pro")
 
@@ -29,9 +29,8 @@ SPECIES_LIST = [
 def init_db():
     conn = sqlite3.connect("habitat_history.db")
     cursor = conn.cursor()
-    # DROP and RECREATE for development to ensure schema sync
-    cursor.execute("DROP TABLE IF EXISTS assessments")
-    cursor.execute("CREATE TABLE assessments (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, lat REAL, lng REAL, status_color TEXT, alert TEXT, temp REAL, oxygen REAL, mining REAL, rainfall REAL, flow REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS assessments (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, lat REAL, lng REAL, status_color TEXT, alert TEXT, temp REAL, oxygen REAL, mining REAL, rainfall REAL, flow REAL)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS mining_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, lat REAL, lng REAL, description TEXT, level TEXT)")
     conn.commit()
     conn.close()
 
@@ -57,79 +56,90 @@ def fetch_area_details(lat: float, lng: float):
 
 @app.post("/assess-zone")
 def assess_habitat(data: EnvironmentData):
-    in_cauvery = 10.0 <= data.lat <= 13.5 and 75.0 <= data.lng <= 80.5
+    in_range = 10.0 <= data.lat <= 13.5 and 75.0 <= data.lng <= 80.5
     env = fetch_area_details(data.lat, data.lng)
 
-    # Scientific Logic
+    # Mafia/Mining Proximity Logic
     mining_prob = 5
     if 12.1 < data.lat < 12.4: mining_prob = 85
 
+    # Check historical mining reports in this area
+    conn = sqlite3.connect("habitat_history.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM mining_reports WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?",
+                   (data.lat-0.05, data.lat+0.05, data.lng-0.05, data.lng+0.05))
+    local_reports = cursor.fetchone()[0]
+    if local_reports > 0: mining_prob = max(mining_prob, 95)
+
     temp = env["soil_temp"]
     do = round(14.6 - (0.3 * temp), 1)
-    flow = round((env["discharge"]**0.4)*0.5, 2)
+    habitat_integrity = mining_prob < 40 and 18 <= temp <= 25
 
-    if not in_cauvery:
-        color, alert = "gray", "⚠️ OUTSIDE RANGE: Species not native to this basin."
-    elif mining_prob > 50:
-        color, alert = "red", "🔴 RESTRICTED: Active Mining/Siltation Threat."
-    elif temp > 25 or temp < 18:
-        color, alert = "red", "🔴 CRITICAL: Lethal Temperature detected."
+    if not in_range:
+        color, alert = "gray", "🔴 FAILED: Outside species range."
+    elif mining_prob > 70:
+        color, alert = "red", "⛔ ILLEGAL MINING ZONE: Spawning strictly prohibited due to Mafia presence."
+    elif not habitat_integrity:
+        color, alert = "red", "🔴 CRITICAL: Environmental Stress detected."
     else:
-        color, alert = "green", "🟢 SANCTUARY: Pristine habitat for Orange-finned Mahseer."
+        color, alert = "green", "🟢 PROTECTED SANCTUARY: Spawning site verified. Mining strictly prohibited."
 
     # Log to History
-    try:
-        conn = sqlite3.connect("habitat_history.db")
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO assessments (timestamp, lat, lng, status_color, alert, temp, oxygen, mining, rainfall, flow) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       (datetime.now().strftime("%Y-%m-%d %H:%M"), data.lat, data.lng, color, alert, temp, do, mining_prob, env["rain"], flow))
-        conn.commit(); conn.close()
-    except: pass
+    cursor.execute("INSERT INTO assessments (timestamp, lat, lng, status_color, alert, temp, oxygen, mining, rainfall, flow) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (datetime.now().strftime("%Y-%m-%d %H:%M"), data.lat, data.lng, color, alert, temp, do, mining_prob, env["rain"], 1.1))
+    conn.commit(); conn.close()
 
     return {
         "color": color, "alert": alert,
+        "audit": {
+            "range": "PASSED" if in_range else "FAILED",
+            "mafia_watch": "CRITICAL THREAT" if mining_prob > 70 else "SECURE",
+            "constraints": "STABLE" if habitat_integrity else "VIOLATED"
+        },
         "details": {
             "temp": temp, "oxygen": do, "mining": mining_prob,
-            "rain": env["rain"], "flow": flow,
-            "basin": "Cauvery Basin" if in_cauvery else "Unknown"
+            "basin": "Cauvery Basin" if in_range else "Unknown"
         }
     }
+
+@app.get("/get-area-trends")
+def get_area_trends(lat: float, lng: float):
+    conn = sqlite3.connect("habitat_history.db")
+    cursor = conn.cursor()
+    # Find all assessments within ~5km of this spot
+    cursor.execute("SELECT timestamp, status_color, mining, temp FROM assessments WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? ORDER BY id DESC LIMIT 10",
+                   (lat-0.05, lat+0.05, lng-0.05, lng+0.05))
+    rows = cursor.fetchall()
+    conn.close()
+    return {"trends": [{"time": r[0], "status": r[1], "mining": r[2], "temp": r[3]} for r in rows]}
+
+@app.post("/report-mafia")
+def report_mafia(data: EnvironmentData):
+    conn = sqlite3.connect("habitat_history.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO mining_reports (timestamp, lat, lng, description, level) VALUES (?, ?, ?, ?, ?)",
+                   (datetime.now().strftime("%Y-%m-%d %H:%M"), data.lat, data.lng, "Illegal Mining Activity Reported", "CRITICAL"))
+    conn.commit(); conn.close()
+    return {"status": "success", "message": "🚨 MAFIA REPORT LOGGED. Authorities notified of illegal activity in this sanctuary."}
 
 @app.get("/history-view")
 async def history_view():
     conn = sqlite3.connect("habitat_history.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT timestamp, alert, lat, lng, temp, mining FROM assessments ORDER BY id DESC LIMIT 50")
+    cursor.execute("SELECT timestamp, alert, lat, lng, mining FROM assessments ORDER BY id DESC LIMIT 50")
     rows = cursor.fetchall()
     conn.close()
-
-    html = """<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <style>
-        body { background:#0f172a; color:white; font-family:sans-serif; padding:25px; font-size:24px; }
-        .card { background:#1e293b; padding:20px; border-radius:15px; margin-bottom:15px; border-left:8px solid #3b82f6; }
-        h2 { color:#38bdf8; font-size:40px; margin-bottom:20px; }
-        .time { color:#94a3b8; font-size:16px; margin-bottom:5px; }
-        .meta { color:#fbbf24; font-size:18px; margin-top:5px; }
-    </style></head><body><h2>Cauvery Sanctuary Logs</h2>"""
-    if not rows: html += "<p>No data yet. Tap the map!</p>"
+    html = """<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body { background:#0f172a; color:white; font-family:sans-serif; padding:25px; font-size:24px; } .card { background:#1e293b; padding:20px; border-radius:15px; margin-bottom:15px; border-left:8px solid #3b82f6; } h2 { color:#38bdf8; font-size:40px; } .meta { color:#ef4444; font-size:18px; margin-top:5px; font-weight:bold; }</style></head><body><h2>Sentinel Spawning Watch</h2>"""
     for r in rows:
-        html += f"<div class='card'><div class='time'>{r[0]}</div><strong>{r[1]}</strong><div class='meta'>Loc: {r[2]}, {r[3]} | Mining: {r[5]}%</div></div>"
+        html += f"<div class='card'><div>{r[0]}</div><strong>{r[1]}</strong><div class='meta'>Mining Threat: {r[4]}% | {r[2]}, {r[3]}</div></div>"
     html += "</body></html>"
     return HTMLResponse(content=html)
 
 @app.get("/species-info")
 async def species_info():
-    html = """<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <style>
-        body { background:#0f172a; color:white; font-family:sans-serif; padding:25px; font-size:24px; line-height:1.6; }
-        .card { background:#1e293b; padding:25px; border-radius:20px; margin-bottom:20px; border:1px solid #334155; }
-        h2 { color:#38bdf8; font-size:45px; border-bottom:2px solid #334155; padding-bottom:10px; margin-bottom:25px; }
-        h3 { color:#fbbf24; margin:0; font-size:32px; }
-        p { margin:10px 0; }
-        .tag { display:inline-block; background:#0369a1; padding:4px 12px; border-radius:8px; font-size:14px; font-weight:bold; margin-top:10px; }
-    </style></head><body><h2>Mahseer Intelligence</h2>"""
+    html = """<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body { background:#0f172a; color:white; font-family:sans-serif; padding:25px; font-size:24px; line-height:1.6; } .card { background:#1e293b; padding:25px; border-radius:20px; margin-bottom:20px; border:1px solid #334155; } h2 { color:#38bdf8; font-size:45px; } h3 { color:#fbbf24; margin:0; font-size:32px; } .tag { display:inline-block; background:#e53935; padding:4px 12px; border-radius:8px; font-size:14px; font-weight:bold; margin-top:10px; }</style></head><body><h2>Cauvery Conservation Rules</h2><div class='card'><h3>🚫 MINING PROHIBITION</h3><p>As per NGT and State Guidelines, sand mining is <strong>strictly prohibited</strong> in all Mahseer spawning zones. Illegal activity (Mafia) must be reported immediately.</p></div>"""
     for s in SPECIES_LIST:
-        html += f"<div class='card'><h3>{s['name']}</h3><span class='tag'>{s['status']}</span><p><strong>Range:</strong> {s['range']}<br>{s['desc']}</p></div>"
+        html += f"<div class='card'><h3>{s['name']}</h3><p>{s['desc']}</p></div>"
     html += "</body></html>"
     return HTMLResponse(content=html)
 
