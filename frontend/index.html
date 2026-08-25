@@ -1,102 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Cauvery Sentinel Pro</title>
+    <title>Cauvery Sentinel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; font-size: 14px; }
+        body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: sans-serif; overflow: hidden; }
         #map { height: 100vh; width: 100vw; background: #1a1a1a; }
-        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -20px 60px rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.1); }
-        .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; }
-        .status { padding: 18px; border-radius: 15px; font-weight: bold; margin-bottom: 20px; font-size: 1.1em; border-left: 10px solid #444; }
-        .green { background: rgba(34, 197, 94, 0.15); border-left-color: #22c55e; color: #4ade80; }
-        .red { background: rgba(239, 68, 68, 0.15); border-left-color: #ef4444; color: #fca5a5; }
-        .gray { background: rgba(148, 163, 184, 0.1); border-left-color: #94a3b8; color: #cbd5e1; }
-
-        .trend-card { background: rgba(0,0,0,0.25); border-radius: 20px; padding: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
-        .trend-title { font-size: 0.7em; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; margin-bottom: 10px; display: block; }
-        .trend-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85em; }
-
-        .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
-        .metric-card { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
-        .label { font-size: 0.7em; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 5px; }
-        .val { font-size: 1.2em; font-weight: bold; color: #38bdf8; }
-        .mafia-btn { background: #e53935; color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; margin-top: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 60vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); border-radius: 30px 30px 0 0; z-index: 1000; display: none; padding: 25px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
+        .status { padding: 15px; border-radius: 12px; font-weight: bold; margin: 15px 0; border-left: 8px solid #444; }
+        .green { background: rgba(34, 197, 94, 0.2); border-color: #22c55e; }
+        .red { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; }
+        .gray { background: rgba(100, 116, 139, 0.2); border-color: #64748b; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; text-align: center; }
+        .label { font-size: 0.7em; color: #94a3b8; display: block; margin-bottom: 4px; }
+        .val { font-size: 1.1em; font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div id="side-panel" class="side-panel"></div>
-
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
         const map = L.map('map').setView([11.8, 77.2], 8);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         map.on('click', (e) => {
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
-
-            // 1. Fetch Current Assessment
-            fetch('/assess-zone', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({lat, lng})
-            })
-            .then(res => res.json())
-            .then(data => {
+            const lat = e.latlng.lat, lng = e.latlng.lng;
+            fetch('/assess-zone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({lat, lng}) })
+            .then(res => res.json()).then(data => {
                 const panel = document.getElementById('side-panel');
                 panel.style.display = 'block';
-                const d = data.details || {};
-                const a = data.audit || {};
-
-                // 2. Fetch Historical Trends for this area
-                fetch(`/get-area-trends?lat=${lat}&lng=${lng}`)
-                .then(r => r.json())
-                .then(trendData => {
-                    let trendHtml = trendData.trends.map(t => `
-                        <div class="trend-item">
-                            <span>${t.time}</span>
-                            <span style="color:${t.status === 'green' ? '#4ade80' : '#ef4444'}">Risk: ${t.mining}%</span>
-                        </div>
-                    `).join('');
-
-                    panel.innerHTML = `
-                        <div class="header">
-                            <div><span class="label">Sentinel Sanctuary Watch</span><h2 style="margin:0; font-size:1.3em;">${lat.toFixed(4)}, ${lng.toFixed(4)}</h2></div>
-                            <button style="background:none; border:none; color:white; font-size:1.8em" onclick="document.getElementById('side-panel').style.display='none'">✕</button>
-                        </div>
-
-                        <div class="status ${data.color}">${data.alert}</div>
-
-                        <div class="trend-card">
-                            <span class="trend-title">Historical Area Trends</span>
-                            ${trendHtml || '<p style="font-size:0.8em; color:#64748b">No previous data for this specific area.</p>'}
-                        </div>
-
-                        <div class="metric-grid">
-                            <div class="metric-card"><span class="label">Mining Watch</span><span class="val" style="color:${a.mafia_watch.includes('CRITICAL') ? '#ef4444' : '#22c55e'}">${a.mafia_watch}</span></div>
-                            <div class="metric-card"><span class="label">Status</span><span class="val">${a.constraints}</span></div>
-                            <div class="metric-card"><span class="label">Bed Temp</span><span class="val">${d.temp}°C</span></div>
-                            <div class="metric-card"><span class="label">Oxygen</span><span class="val">${d.oxygen} mg/L</span></div>
-                        </div>
-
-                        <button class="mafia-btn" onclick="reportMafia(${lat}, ${lng})">🚨 REPORT ILLEGAL MAFIA MINING</button>
-                    `;
+                const d = data.details;
+                panel.innerHTML = `
+                    <div style="display:flex; justify-content:space-between">
+                        <h2 style="margin:0">${lat.toFixed(3)}, ${lng.toFixed(3)}</h2>
+                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:white; font-size:1.5em">✕</button>
+                    </div>
+                    <div class="status ${data.color}">${data.alert}</div>
+                    <div class="grid">
+                        <div class="card"><span class="label">TEMP</span><span class="val">${d.temp}°C</span></div>
+                        <div class="card"><span class="label">MINING</span><span class="val" style="color:#ef4444">${d.mining}%</span></div>
+                    </div>
+                    <div id="trendDiv" style="margin-top:20px; font-size:0.8em; color:#94a3b8">Loading local trends...</div>
+                `;
+                // Load trends separately so it doesn't block the main UI
+                fetch(`/get-area-trends?lat=${lat}&lng=${lng}`).then(r => r.json()).then(tData => {
+                    const div = document.getElementById('trendDiv');
+                    if (tData.trends.length === 0) { div.innerHTML = "No historical data for this 10km zone."; return; }
+                    div.innerHTML = "<b>Recent Visits in this area:</b><br>" + tData.trends.map(t => `${t.time}: ${t.mining}% risk`).join('<br>');
                 });
             });
         });
-
-        function reportMafia(lat, lng) {
-            fetch('/report-mafia', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({lat, lng})
-            })
-            .then(res => res.json())
-            .then(data => alert(data.message));
-        }
     </script>
 </body>
 </html>
