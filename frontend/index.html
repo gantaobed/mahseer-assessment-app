@@ -1,135 +1,49 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html>
 <head>
-    <title>Cauvery Spawning Sentinel</title>
+    <title>Cauvery Sentinel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        :root { --bg: #0b0f1a; --glass: rgba(20, 26, 42, 0.85); --primary: #38bdf8; --text: #f1f5f9; }
-        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-        #map { height: 100vh; width: 100vw; background: #000; }
-
-        .floating-label { position: absolute; top: 15px; left: 15px; z-index: 1000; background: var(--glass); backdrop-filter: blur(10px); padding: 10px 18px; border-radius: 20px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1); font-size: 0.85em; letter-spacing: 0.5px; }
-
-        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: var(--glass); backdrop-filter: blur(25px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; box-shadow: 0 -20px 60px rgba(0,0,0,0.6); border-top: 1px solid rgba(255,255,255,0.1); overflow-y: auto; }
-
-        .audit-card { background: rgba(0,0,0,0.3); border-radius: 24px; padding: 20px; margin-top: 20px; border: 1px solid rgba(255,255,255,0.08); }
-        .audit-item { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9em; }
-        .audit-check { color: #22c55e; font-weight: bold; }
-        .audit-fail { color: #ef4444; font-weight: bold; }
-
-        .status-header { padding: 18px; border-radius: 18px; margin-bottom: 25px; font-weight: bold; font-size: 1.15em; line-height: 1.4; border-left: 10px solid #444; }
-        .bg-green { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #4ade80; }
-        .bg-yellow { background: rgba(234, 179, 8, 0.15); border-color: #eab308; color: #fde047; }
-        .bg-red { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fca5a5; }
-
-        .scientific-header { text-transform: uppercase; letter-spacing: 2px; font-size: 0.65em; color: #94a3b8; margin-bottom: 10px; display: block; font-weight: 800; }
-        .close-btn { background: rgba(255,255,255,0.05); border: none; color: #f1f5f9; width: 40px; height: 40px; border-radius: 20px; font-size: 1.2em; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: sans-serif; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; background: #1a1a1a; }
+        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 60vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-radius: 30px 30px 0 0; z-index: 1000; display: none; padding: 25px; box-sizing: border-box; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .status { padding: 15px; border-radius: 12px; font-weight: bold; margin-bottom: 15px; }
+        .green { background: rgba(34, 197, 94, 0.2); border-left: 5px solid #22c55e; }
+        .red { background: rgba(239, 68, 68, 0.2); border-left: 5px solid #ef4444; }
     </style>
 </head>
 <body>
-    <div class="floating-label">🛡️ CAUVERY BASIN SENTINEL — Orange-finned Mahseer Domain</div>
-
     <div id="map"></div>
     <div id="side-panel" class="side-panel"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        // GEOGRAPHIC LOCKDOWN: Cauvery Basin Boundaries
-        // Karnataka, Tamil Nadu, Kerala, Puducherry
-        const cauveryBounds = L.latLngBounds(
-            [10.0, 75.0], // Southwest (Kerala/Southern TN)
-            [13.5, 80.5]  // Northeast (Karnataka/Puducherry coast)
-        );
+        // Set center to Moyar Valley / Sangama area
+        const map = L.map('map').setView([11.8, 77.2], 8);
 
-        const map = L.map('map', {
-            center: [11.8, 77.5],
-            zoom: 8,
-            minZoom: 7,
-            maxBounds: cauveryBounds,
-            maxBoundsViscosity: 1.0 // Strong wall effect at boundaries
-        });
-
-        // Professional Satellite-Hybrid style tile
-        L.tileLayer('https://{s}.tile.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-
-        // Highlight the Cauvery Basin area (Visual Aid)
-        L.rectangle(cauveryBounds, {
-            color: "#38bdf8", weight: 2, fillOpacity: 0.03, dashArray: '10, 10', interactive: false
-        }).addTo(map);
+        // Standard Reliable Tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         map.on('click', (e) => {
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
-
-            // UI Feedback for invalid clicks
-            if (!cauveryBounds.contains(e.latlng)) {
-                alert("OUTSIDE CAUVERY BASIN\nThis coordinate is outside the protected sanctuary of the Orange-finned Mahseer.");
-                return;
-            }
-
             fetch('/assess-zone', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({lat, lng})
+                body: JSON.stringify({lat: e.latlng.lat, lng: e.latlng.lng})
             })
             .then(res => res.json())
             .then(data => {
                 const panel = document.getElementById('side-panel');
                 panel.style.display = 'block';
-
-                const audit = data.audit || {};
-                const bgClass = data.color === 'green' ? 'bg-green' : data.color === 'yellow' ? 'bg-yellow' : 'bg-red';
-
                 panel.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <div>
-                            <span class="scientific-header">Geographic Assessment Hub</span>
-                            <h2 style="margin:0; font-size:1.3em;">Lat: ${lat.toFixed(4)} | Lng: ${lng.toFixed(4)}</h2>
-                        </div>
-                        <button class="close-btn" onclick="document.getElementById('side-panel').style.display='none'">✕</button>
+                    <div class="header">
+                        <h2 style="margin:0">${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)}</h2>
+                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:white; font-size:1.5em">✕</button>
                     </div>
-
-                    <div class="status-header ${bgClass}" style="margin-top:25px;">
-                        ${data.alert}
-                    </div>
-
-                    <div class="audit-card">
-                        <span class="scientific-header" style="color: var(--primary)">Habitat Suitability Audit</span>
-                        <div class="audit-item">
-                            <span>Basin System (Cauvery)</span>
-                            <span class="${audit.range_valid ? 'audit-check' : 'audit-fail'}">${audit.range_valid ? 'VALIDATED' : 'FAILED'}</span>
-                        </div>
-                        <div class="audit-item">
-                            <span>Regional Endemicity</span>
-                            <span style="color:#f8fafc">Orange-finned Mahseer</span>
-                        </div>
-                        <div class="audit-item">
-                            <span>Critical Tributary Link</span>
-                            <span style="color:#f8fafc">${audit.basin_name}</span>
-                        </div>
-                        <div class="audit-item">
-                            <span>Mining/Siltation Barrier</span>
-                            <span style="color:${audit.mining_constraint.includes('HIGH') ? '#ef4444' : '#22c55e'}">${audit.mining_constraint}</span>
-                        </div>
-                    </div>
-
-                    ${data.live ? `
-                    <div style="margin-top:25px; display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-                        <div style="background:rgba(0,0,0,0.3); padding:18px; border-radius:20px; text-align:center; border: 1px solid rgba(255,255,255,0.05);">
-                            <span class="scientific-header">Bed Temp</span>
-                            <span style="font-size:1.3em; font-weight:bold; color:var(--primary)">${data.live.temp}°C</span>
-                        </div>
-                        <div style="background:rgba(0,0,0,0.3); padding:18px; border-radius:20px; text-align:center; border: 1px solid rgba(255,255,255,0.05);">
-                            <span class="scientific-header">Mining Prob.</span>
-                            <span style="font-size:1.3em; font-weight:bold; color:#ef4444">${data.live.mining}%</span>
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    <div style="text-align:center; margin-top:30px; font-size:0.7em; color:#475569; letter-spacing:1px; font-weight:bold;">
-                        PROTECTING THE TIGER OF THE CAUVERY
-                    </div>
+                    <div class="status ${data.color === 'green' ? 'green' : 'red'}">${data.alert}</div>
+                    <p>Bed Temp: ${data.live ? data.live.temp : '--'}°C</p>
+                    <p>Oxygen: ${data.live ? data.live.do : '--'} mg/L</p>
                 `;
             });
         });
