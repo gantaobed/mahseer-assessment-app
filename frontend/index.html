@@ -7,15 +7,21 @@
     <style>
         body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: sans-serif; overflow: hidden; }
         #map { height: 100vh; width: 100vw; background: #1a1a1a; }
-        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 60vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); border-radius: 30px 30px 0 0; z-index: 1000; display: none; padding: 25px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
-        .status { padding: 15px; border-radius: 12px; font-weight: bold; margin: 15px 0; border-left: 8px solid #444; }
-        .green { background: rgba(34, 197, 94, 0.2); border-color: #22c55e; }
-        .red { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; }
-        .gray { background: rgba(100, 116, 139, 0.2); border-color: #64748b; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .card { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; text-align: center; }
-        .label { font-size: 0.7em; color: #94a3b8; display: block; margin-bottom: 4px; }
-        .val { font-size: 1.1em; font-weight: bold; }
+        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -15px 50px rgba(0,0,0,0.6); }
+        .status { padding: 20px; border-radius: 18px; font-weight: bold; margin: 15px 0; border-left: 10px solid #444; font-size: 1.1em; }
+        .green { background: rgba(34, 197, 94, 0.2); border-color: #22c55e; color: #4ade80; }
+        .red { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5; }
+        .gray { background: rgba(100, 116, 139, 0.2); border-color: #64748b; color: #cbd5e1; }
+        .audit-card { background: rgba(0,0,0,0.25); border-radius: 20px; padding: 18px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .audit-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9em; }
+        .audit-label { color: #94a3b8; }
+        .audit-val { font-weight: bold; }
+        .pass { color: #22c55e; }
+        .fail { color: #ef4444; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .card { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+        .label { font-size: 0.75em; color: #94a3b8; display: block; margin-bottom: 5px; text-transform: uppercase; }
+        .val { font-size: 1.25em; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -32,25 +38,29 @@
             .then(res => res.json()).then(data => {
                 const panel = document.getElementById('side-panel');
                 panel.style.display = 'block';
-                const d = data.details;
+                const d = data.details, a = data.audit;
                 panel.innerHTML = `
-                    <div style="display:flex; justify-content:space-between">
-                        <h2 style="margin:0">${lat.toFixed(3)}, ${lng.toFixed(3)}</h2>
-                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:white; font-size:1.5em">✕</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <h2 style="margin:0; font-size:1.4em">${lat.toFixed(4)}, ${lng.toFixed(4)}</h2>
+                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:white; font-size:2em">✕</button>
                     </div>
                     <div class="status ${data.color}">${data.alert}</div>
-                    <div class="grid">
-                        <div class="card"><span class="label">TEMP</span><span class="val">${d.temp}°C</span></div>
-                        <div class="card"><span class="label">MINING</span><span class="val" style="color:#ef4444">${d.mining}%</span></div>
+                    <div class="audit-card">
+                        <div class="audit-row"><span class="audit-label">Species Geographic Range</span><span class="audit-val ${a.range==='PASSED'?'pass':'fail'}">${a.range}</span></div>
+                        <div class="audit-row"><span class="audit-label">River System (Basin)</span><span class="audit-val" style="color:white">${a.basin}</span></div>
+                        <div class="audit-row"><span class="audit-label">Real Habitat Constraints</span><span class="audit-val ${a.constraints==='STABLE'?'pass':'fail'}">${a.constraints}</span></div>
                     </div>
-                    <div id="trendDiv" style="margin-top:20px; font-size:0.8em; color:#94a3b8">Loading local trends...</div>
+                    <div class="grid">
+                        <div class="card"><span class="label">Bed Temp</span><span class="val">${d.temp}°C</span></div>
+                        <div class="card"><span class="label">Mining</span><span class="val" style="color:#ef4444">${d.mining}%</span></div>
+                    </div>
+                    <div id="trendDiv" style="margin-top:20px; font-size:0.9em; padding:15px; background:rgba(0,0,0,0.2); border-radius:15px; border: 1px solid rgba(255,255,255,0.03)">Loading local trends...</div>
                 `;
-                // Load trends separately so it doesn't block the main UI
                 fetch(`/get-area-trends?lat=${lat}&lng=${lng}`).then(r => r.json()).then(tData => {
                     const div = document.getElementById('trendDiv');
-                    if (tData.trends.length === 0) { div.innerHTML = "No historical data for this 10km zone."; return; }
-                    div.innerHTML = "<b>Recent Visits in this area:</b><br>" + tData.trends.map(t => `${t.time}: ${t.mining}% risk`).join('<br>');
-                });
+                    if (tData.trends.length === 0) { div.innerHTML = "No historical logs for this area."; return; }
+                    div.innerHTML = "<b>Recent Logs (This Area):</b><br>" + tData.trends.map(t => `<div style="display:flex; justify-content:space-between; margin-top:5px"><span>${t.time}</span> <span style="color:${t.status==='green'?'#4ade80':'#ef4444'}">Mining: ${t.mining}%</span></div>`).join('');
+                }).catch(() => { document.getElementById('trendDiv').innerHTML = "Trend data sync failed."; });
             });
         });
     </script>
