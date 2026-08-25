@@ -1,158 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="dark">
 <head>
-    <title>Mahseer Spawning Pro</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cauvery Spawning Sentinel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; }
-        #map { height: 100vh; width: 100vw; }
-        #side-panel { width: 100%; height: 75vh; position: fixed; bottom: 0; left: 0; background: #1e1e1e; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); overflow-y: auto; padding: 20px; box-sizing: border-box; display: none; z-index: 1000; border-radius: 20px 20px 0 0; }
-        .panel-header { font-size: 1.4em; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; }
-        .status-banner { padding: 12px; border-radius: 8px; margin: 15px 0; font-weight: bold; }
-        .status-green { background: rgba(76, 175, 80, 0.2); border-left: 5px solid #4caf50; color: #81c784; }
-        .status-yellow { background: rgba(255, 193, 7, 0.2); border-left: 5px solid #ffc107; color: #ffe082; }
-        .status-red { background: rgba(244, 67, 54, 0.2); border-left: 5px solid #f44336; color: #ef9a9a; }
-        .btn { background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
-        .lang-bar { position: absolute; top: 10px; left: 50px; z-index: 1000; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 20px; display: flex; gap: 5px; }
-        .lang-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 0.8em; padding: 5px 10px; border-radius: 15px; }
-        .lang-btn.active { background: #3b82f6; color: white; }
-        .map-controls { position: absolute; top: 60px; left: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; }
-        .control-btn { background: #1e1e1e; color: white; border: 1px solid #444; padding: 10px; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: #1e1e1e; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #333; color: white; border: 1px solid #444; border-radius: 8px; box-sizing: border-box; }
-        .chart-container { height: 180px; margin-top: 10px; display: none; }
-        .favorite-spot { display: flex; align-items: center; gap: 10px; background: #252525; padding: 10px; border-radius: 8px; margin-top: 10px; }
+        :root { --bg: #0b0f1a; --glass: rgba(20, 26, 42, 0.85); --primary: #38bdf8; --text: #f1f5f9; }
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+        #map { height: 100vh; width: 100vw; background: #000; }
+
+        .floating-label { position: absolute; top: 15px; left: 15px; z-index: 1000; background: var(--glass); backdrop-filter: blur(10px); padding: 10px 18px; border-radius: 20px; font-weight: bold; border: 1px solid rgba(255,255,255,0.1); font-size: 0.85em; letter-spacing: 0.5px; }
+
+        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: var(--glass); backdrop-filter: blur(25px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; box-shadow: 0 -20px 60px rgba(0,0,0,0.6); border-top: 1px solid rgba(255,255,255,0.1); overflow-y: auto; }
+
+        .audit-card { background: rgba(0,0,0,0.3); border-radius: 24px; padding: 20px; margin-top: 20px; border: 1px solid rgba(255,255,255,0.08); }
+        .audit-item { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9em; }
+        .audit-check { color: #22c55e; font-weight: bold; }
+        .audit-fail { color: #ef4444; font-weight: bold; }
+
+        .status-header { padding: 18px; border-radius: 18px; margin-bottom: 25px; font-weight: bold; font-size: 1.15em; line-height: 1.4; border-left: 10px solid #444; }
+        .bg-green { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #4ade80; }
+        .bg-yellow { background: rgba(234, 179, 8, 0.15); border-color: #eab308; color: #fde047; }
+        .bg-red { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fca5a5; }
+
+        .scientific-header { text-transform: uppercase; letter-spacing: 2px; font-size: 0.65em; color: #94a3b8; margin-bottom: 10px; display: block; font-weight: 800; }
+        .close-btn { background: rgba(255,255,255,0.05); border: none; color: #f1f5f9; width: 40px; height: 40px; border-radius: 20px; font-size: 1.2em; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
-    <div class="lang-bar">
-        <button class="lang-btn active" onclick="setLang('en')">EN</button>
-        <button class="lang-btn" onclick="setLang('kn')">ಕನ್ನಡ</button>
-        <button class="lang-btn" onclick="setLang('hi')">हिंदी</button>
-    </div>
-
-    <div class="map-controls">
-        <button class="control-btn" onclick="toggleHeatmap()">🔥 Heatmap</button>
-        <button class="control-btn" onclick="showFavorites()">⭐ My Spots</button>
-    </div>
+    <div class="floating-label">🛡️ CAUVERY BASIN SENTINEL — Orange-finned Mahseer Domain</div>
 
     <div id="map"></div>
-    <div id="side-panel"><div id="panel-content"></div></div>
-
-    <div id="modal">
-        <div class="modal-content">
-            <h3 id="modal-title">🚨 Report Incident</h3>
-            <select id="report-category">
-                <option value="Sand Mining">Sand Mining</option>
-                <option value="Pollution">Pollution</option>
-                <option value="Illegal Fishing">Illegal Fishing</option>
-            </select>
-            <textarea id="report-desc" placeholder="Details..."></textarea>
-            <input type="file" id="report-image" accept="image/*" capture="camera">
-            <button class="btn" onclick="submitReport()">Submit</button>
-            <button class="btn" style="background:#444" onclick="closeModal()">Cancel</button>
-        </div>
-    </div>
+    <div id="side-panel" class="side-panel"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        const map = L.map('map').setView([12.2, 77.4], 9);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        let currentLat, currentLng, myChart, heatLayer, currentLang = 'en';
+        // GEOGRAPHIC LOCKDOWN: Cauvery Basin Boundaries
+        // Karnataka, Tamil Nadu, Kerala, Puducherry
+        const cauveryBounds = L.latLngBounds(
+            [10.0, 75.0], // Southwest (Kerala/Southern TN)
+            [13.5, 80.5]  // Northeast (Karnataka/Puducherry coast)
+        );
 
-        const i18n = {
-            en: { report: "Report Incident", trends: "View 24h Trends", save: "Save this Spot", msg: "Success", details: "Details..." },
-            kn: { report: "ವರದಿ ಮಾಡಿ", trends: "24 ಗಂಟೆಗಳ ಪ್ರವೃತ್ತಿ", save: "ಈ ಸ್ಥಳವನ್ನು ಉಳಿಸಿ", msg: "ಯಶಸ್ವಿಯಾಗಿದೆ", details: "ವಿವರಗಳು..." },
-            hi: { report: "रिपोर्ट करें", trends: "24 घंटे का रुझान", save: "इस जगह को सेव करें", msg: "सफल", details: "विवರಣ..." }
-        };
-
-        function setLang(lang) {
-            currentLang = lang;
-            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            alert(`Language switched to ${lang.toUpperCase()}`);
-        }
-
-        function toggleHeatmap() {
-            if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; return; }
-            fetch('/get-heatmap').then(res => res.json()).then(data => {
-                heatLayer = L.heatLayer(data.points, { radius: 25, blur: 15, maxZoom: 10 }).addTo(map);
-            });
-        }
-
-        map.on('click', (e) => {
-            currentLat = e.latlng.lat; currentLng = e.latlng.lng;
-            const zone = { zone_id: Date.now(), zone_name: `Point ${currentLat.toFixed(2)}`, lat: currentLat, lng: currentLng, current_data: {} };
-            L.circleMarker([currentLat, currentLng], { radius: 8, color: '#3b82f6' }).addTo(map);
-            fetchAssessment(zone);
+        const map = L.map('map', {
+            center: [11.8, 77.5],
+            zoom: 8,
+            minZoom: 7,
+            maxBounds: cauveryBounds,
+            maxBoundsViscosity: 1.0 // Strong wall effect at boundaries
         });
 
-        function fetchAssessment(zone) {
-            fetch('/assess-zone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(zone) })
-            .then(res => res.json()).then(data => openPanel(zone, data));
-        }
+        // Professional Satellite-Hybrid style tile
+        L.tileLayer('https://{s}.tile.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        function openPanel(zone, data) {
-            const panel = document.getElementById('side-panel');
-            panel.style.display = 'block';
-            const live = data.live_fetched_data;
-            const t = i18n[currentLang];
-            document.getElementById('panel-content').innerHTML = `
-                <div class="panel-header">${zone.zone_name} <span onclick="this.parentElement.parentElement.parentElement.style.display='none'">✕</span></div>
-                <div class="status-banner ${data.color === 'green' ? 'status-green' : data.color === 'yellow' ? 'status-yellow' : 'status-red'}">${data.alert}</div>
-                <button class="btn" onclick="showTrends()">📈 ${t.trends}</button>
-                <div class="chart-container" id="chartDiv"><canvas id="trendChart"></canvas></div>
-                <button class="btn" style="background:#4caf50" onclick="saveSpot('${zone.zone_name}')">⭐ ${t.save}</button>
-                <button class="btn" style="background:#e53935" onclick="document.getElementById('modal').style.display='flex'">🚨 ${t.report}</button>
-            `;
-        }
+        // Highlight the Cauvery Basin area (Visual Aid)
+        L.rectangle(cauveryBounds, {
+            color: "#38bdf8", weight: 2, fillOpacity: 0.03, dashArray: '10, 10', interactive: false
+        }).addTo(map);
 
-        function saveSpot(name) {
-            let spots = JSON.parse(localStorage.getItem('fav_spots') || '[]');
-            spots.push({ name, lat: currentLat, lng: currentLng });
-            localStorage.setItem('fav_spots', JSON.stringify(spots));
-            alert("Spot saved to 'My Spots'!");
-        }
+        map.on('click', (e) => {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
 
-        function showFavorites() {
-            let spots = JSON.parse(localStorage.getItem('fav_spots') || '[]');
-            if (spots.length === 0) { alert("No saved spots yet. Click the map and click 'Save Spot'!"); return; }
-            let list = spots.map(s => `<li>${s.name} (${s.lat.toFixed(2)})</li>`).join('');
-            alert(`My Saved Spots:\n${spots.map(s => s.name).join('\n')}`);
-        }
+            // UI Feedback for invalid clicks
+            if (!cauveryBounds.contains(e.latlng)) {
+                alert("OUTSIDE CAUVERY BASIN\nThis coordinate is outside the protected sanctuary of the Orange-finned Mahseer.");
+                return;
+            }
 
-        function showTrends() {
-            document.getElementById('chartDiv').style.display = 'block';
-            fetch(`/get-trends?lat=${currentLat}&lng=${currentLng}`).then(res => res.json()).then(data => {
-                const ctx = document.getElementById('trendChart').getContext('2d');
-                if (myChart) myChart.destroy();
-                myChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.labels,
-                        datasets: [{ label: 'Temp', data: data.temp_data, borderColor: '#ff9800' }, { label: 'DO', data: data.do_data, borderColor: '#2196f3' }]
-                    },
-                    options: { maintainAspectRatio: false }
-                });
+            fetch('/assess-zone', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({lat, lng})
+            })
+            .then(res => res.json())
+            .then(data => {
+                const panel = document.getElementById('side-panel');
+                panel.style.display = 'block';
+
+                const audit = data.audit || {};
+                const bgClass = data.color === 'green' ? 'bg-green' : data.color === 'yellow' ? 'bg-yellow' : 'bg-red';
+
+                panel.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <span class="scientific-header">Geographic Assessment Hub</span>
+                            <h2 style="margin:0; font-size:1.3em;">Lat: ${lat.toFixed(4)} | Lng: ${lng.toFixed(4)}</h2>
+                        </div>
+                        <button class="close-btn" onclick="document.getElementById('side-panel').style.display='none'">✕</button>
+                    </div>
+
+                    <div class="status-header ${bgClass}" style="margin-top:25px;">
+                        ${data.alert}
+                    </div>
+
+                    <div class="audit-card">
+                        <span class="scientific-header" style="color: var(--primary)">Habitat Suitability Audit</span>
+                        <div class="audit-item">
+                            <span>Basin System (Cauvery)</span>
+                            <span class="${audit.range_valid ? 'audit-check' : 'audit-fail'}">${audit.range_valid ? 'VALIDATED' : 'FAILED'}</span>
+                        </div>
+                        <div class="audit-item">
+                            <span>Regional Endemicity</span>
+                            <span style="color:#f8fafc">Orange-finned Mahseer</span>
+                        </div>
+                        <div class="audit-item">
+                            <span>Critical Tributary Link</span>
+                            <span style="color:#f8fafc">${audit.basin_name}</span>
+                        </div>
+                        <div class="audit-item">
+                            <span>Mining/Siltation Barrier</span>
+                            <span style="color:${audit.mining_constraint.includes('HIGH') ? '#ef4444' : '#22c55e'}">${audit.mining_constraint}</span>
+                        </div>
+                    </div>
+
+                    ${data.live ? `
+                    <div style="margin-top:25px; display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                        <div style="background:rgba(0,0,0,0.3); padding:18px; border-radius:20px; text-align:center; border: 1px solid rgba(255,255,255,0.05);">
+                            <span class="scientific-header">Bed Temp</span>
+                            <span style="font-size:1.3em; font-weight:bold; color:var(--primary)">${data.live.temp}°C</span>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.3); padding:18px; border-radius:20px; text-align:center; border: 1px solid rgba(255,255,255,0.05);">
+                            <span class="scientific-header">Mining Prob.</span>
+                            <span style="font-size:1.3em; font-weight:bold; color:#ef4444">${data.live.mining}%</span>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div style="text-align:center; margin-top:30px; font-size:0.7em; color:#475569; letter-spacing:1px; font-weight:bold;">
+                        PROTECTING THE TIGER OF THE CAUVERY
+                    </div>
+                `;
             });
-        }
-
-        function submitReport() {
-            const formData = new FormData();
-            formData.append('lat', currentLat); formData.append('lng', currentLng);
-            formData.append('category', document.getElementById('report-category').value);
-            formData.append('description', document.getElementById('report-desc').value);
-            const img = document.getElementById('report-image').files[0];
-            if (img) formData.append('image', img);
-            fetch('/report-incident', { method: 'POST', body: formData }).then(res => res.json()).then(d => {
-                alert(d.message); document.getElementById('modal').style.display = 'none';
-            });
-        }
-        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+        });
     </script>
 </body>
 </html>
