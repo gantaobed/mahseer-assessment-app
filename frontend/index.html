@@ -8,20 +8,17 @@
         body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: sans-serif; overflow: hidden; }
         #map { height: 100vh; width: 100vw; background: #1a1a1a; }
         .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -15px 50px rgba(0,0,0,0.6); }
-        .status { padding: 20px; border-radius: 18px; font-weight: bold; margin: 15px 0; border-left: 10px solid #444; font-size: 1.1em; }
+        .status { padding: 20px; border-radius: 18px; font-weight: bold; margin: 15px 0; border-left: 10px solid #444; }
         .green { background: rgba(34, 197, 94, 0.2); border-color: #22c55e; color: #4ade80; }
         .red { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #fca5a5; }
         .gray { background: rgba(100, 116, 139, 0.2); border-color: #64748b; color: #cbd5e1; }
         .audit-card { background: rgba(0,0,0,0.25); border-radius: 20px; padding: 18px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
         .audit-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9em; }
-        .audit-label { color: #94a3b8; }
-        .audit-val { font-weight: bold; }
-        .pass { color: #22c55e; }
-        .fail { color: #ef4444; }
+        .pass { color: #22c55e; font-weight: bold; }
+        .fail { color: #ef4444; font-weight: bold; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .card { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+        .card { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; text-align: center; }
         .label { font-size: 0.75em; color: #94a3b8; display: block; margin-bottom: 5px; text-transform: uppercase; }
-        .val { font-size: 1.25em; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -34,22 +31,14 @@
 
         map.on('click', (e) => {
             const lat = e.latlng.lat, lng = e.latlng.lng;
-            console.log("Click detected at:", lat, lng);
+            const panel = document.getElementById('side-panel');
+            panel.style.display = 'block';
+            panel.innerHTML = `<h2 style="text-align:center">⚡ Waking up Sentinel Engine...</h2><p style="text-align:center">Please wait 20-30 seconds for the first load.</p>`;
 
-            fetch('/assess-zone', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({lat, lng})
-            })
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                return res.json();
-            })
-            .then(data => {
-                console.log("Assessment data received:", data);
-                const panel = document.getElementById('side-panel');
-                panel.style.display = 'block';
+            fetch('/assess-zone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({lat, lng}) })
+            .then(res => res.json()).then(data => {
                 const d = data.details, a = data.audit;
+                let trendHtml = data.trends.map(t => `<div style="display:flex; justify-content:space-between; margin-top:5px"><span>${t.time}</span> <b>Risk: ${t.mining}%</b></div>`).join('');
 
                 panel.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center">
@@ -58,44 +47,24 @@
                     </div>
                     <div class="status ${data.color}">${data.alert}</div>
                     <div class="audit-card">
-                        <div class="audit-row"><span class="audit-label">Species Geographic Range</span><span class="audit-val ${a.range==='PASSED'?'pass':'fail'}">${a.range}</span></div>
-                        <div class="audit-row"><span class="audit-label">River System (Basin)</span><span class="audit-val" style="color:white">${a.basin || 'Kaveri Basin'}</span></div>
-                        <div class="audit-row"><span class="audit-label">Real Habitat Constraints</span><span class="audit-val ${a.constraints==='STABLE'?'pass':'fail'}">${a.constraints}</span></div>
+                        <div class="audit-row"><span>Species Geographic Range</span><span class="${a.range==='PASSED'?'pass':'fail'}">${a.range}</span></div>
+                        <div class="audit-row"><span>River System (Basin)</span><span style="color:white">${a.basin}</span></div>
+                        <div class="audit-row"><span>Real Habitat Constraints</span><span class="${a.constraints==='STABLE'?'pass':'fail'}">${a.constraints}</span></div>
                     </div>
                     <div class="grid">
-                        <div class="card"><span class="label">Bed Temp</span><span class="val">${d.temp}°C</span></div>
-                        <div class="card"><span class="label">Mining</span><span class="val" style="color:#ef4444">${d.mining}%</span></div>
+                        <div class="card"><span class="label">Bed Temp</span><b>${d.temp}°C</b></div>
+                        <div class="card"><span class="label">Mining</span><b style="color:#ef4444">${d.mining}%</b></div>
                     </div>
-                    <div id="trendDiv" style="margin-top:20px; font-size:0.9em; padding:15px; background:rgba(0,0,0,0.2); border-radius:15px; border: 1px solid rgba(255,255,255,0.03)">Loading local trends...</div>
+                    <div id="trendDiv" style="margin-top:20px; font-size:0.9em; padding:15px; background:rgba(0,0,0,0.2); border-radius:15px; border: 1px solid rgba(255,255,255,0.03)">
+                        <b>Recent Area Trends:</b><br>
+                        ${data.trends && data.trends.length > 0
+                            ? data.trends.map(t => `<div style="display:flex; justify-content:space-between; margin-top:5px"><span>${t.time}</span> <b>Risk: ${t.mining}%</b></div>`).join('')
+                            : '<p style="font-size:0.8em; color:#64748b">No historical logs for this 10km zone.</p>'}
+                    </div>
+                    <div style="text-align:center; margin-top:25px; font-size:0.7em; color:#475569; font-weight:bold;">🐅 CAUVERY SANCTUARY SENTINEL</div>
                 `;
-
-                // Fetch trends separately
-                fetch(`/get-area-trends?lat=${lat}&lng=${lng}`)
-                .then(r => {
-                    if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
-                    return r.json();
-                })
-                .then(tData => {
-                    console.log("Trend data received:", tData);
-                    const div = document.getElementById('trendDiv');
-                    if (!tData.trends || tData.trends.length === 0) {
-                        div.innerHTML = "No historical logs for this area.";
-                        return;
-                    }
-                    div.innerHTML = "<b>Recent Logs (This Area):</b><br>" + tData.trends.map(t => `
-                        <div style="display:flex; justify-content:space-between; margin-top:5px">
-                            <span>${t.time}</span>
-                            <span style="color:${t.status==='green'?'#4ade80':'#ef4444'}">Mining: ${t.mining}%</span>
-                        </div>`).join('');
-                })
-                .catch(err => {
-                    console.error("Trend fetch error:", err);
-                    document.getElementById('trendDiv').innerHTML = "Trend data sync failed.";
-                });
-            })
-            .catch(err => {
-                console.error("Assessment fetch error:", err);
-                alert(`Critical: ${err.message}\n\nNote: If the server was sleeping, it may take 30-60 seconds to wake up. Please wait a moment and try clicking again.`);
+            }).catch(err => {
+                panel.innerHTML = `<h2 style="color:#ef4444">Connection Timeout</h2><p>The server is still waking up. Please wait 10 seconds and <b>click the map again.</b></p><button onclick="document.getElementById('side-panel').style.display='none'" style="width:100%; padding:10px; background:#333; color:white; border:none; border-radius:10px">Close</button>`;
             });
         });
     </script>
