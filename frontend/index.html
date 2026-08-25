@@ -34,11 +34,23 @@
 
         map.on('click', (e) => {
             const lat = e.latlng.lat, lng = e.latlng.lng;
-            fetch('/assess-zone', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({lat, lng}) })
-            .then(res => res.json()).then(data => {
+            console.log("Click detected at:", lat, lng);
+
+            fetch('/assess-zone', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({lat, lng})
+            })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                console.log("Assessment data received:", data);
                 const panel = document.getElementById('side-panel');
                 panel.style.display = 'block';
                 const d = data.details, a = data.audit;
+
                 panel.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center">
                         <h2 style="margin:0; font-size:1.4em">${lat.toFixed(4)}, ${lng.toFixed(4)}</h2>
@@ -47,7 +59,7 @@
                     <div class="status ${data.color}">${data.alert}</div>
                     <div class="audit-card">
                         <div class="audit-row"><span class="audit-label">Species Geographic Range</span><span class="audit-val ${a.range==='PASSED'?'pass':'fail'}">${a.range}</span></div>
-                        <div class="audit-row"><span class="audit-label">River System (Basin)</span><span class="audit-val" style="color:white">${a.basin}</span></div>
+                        <div class="audit-row"><span class="audit-label">River System (Basin)</span><span class="audit-val" style="color:white">${a.basin || 'Kaveri Basin'}</span></div>
                         <div class="audit-row"><span class="audit-label">Real Habitat Constraints</span><span class="audit-val ${a.constraints==='STABLE'?'pass':'fail'}">${a.constraints}</span></div>
                     </div>
                     <div class="grid">
@@ -56,11 +68,34 @@
                     </div>
                     <div id="trendDiv" style="margin-top:20px; font-size:0.9em; padding:15px; background:rgba(0,0,0,0.2); border-radius:15px; border: 1px solid rgba(255,255,255,0.03)">Loading local trends...</div>
                 `;
-                fetch(`/get-area-trends?lat=${lat}&lng=${lng}`).then(r => r.json()).then(tData => {
+
+                // Fetch trends separately
+                fetch(`/get-area-trends?lat=${lat}&lng=${lng}`)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
+                    return r.json();
+                })
+                .then(tData => {
+                    console.log("Trend data received:", tData);
                     const div = document.getElementById('trendDiv');
-                    if (tData.trends.length === 0) { div.innerHTML = "No historical logs for this area."; return; }
-                    div.innerHTML = "<b>Recent Logs (This Area):</b><br>" + tData.trends.map(t => `<div style="display:flex; justify-content:space-between; margin-top:5px"><span>${t.time}</span> <span style="color:${t.status==='green'?'#4ade80':'#ef4444'}">Mining: ${t.mining}%</span></div>`).join('');
-                }).catch(() => { document.getElementById('trendDiv').innerHTML = "Trend data sync failed."; });
+                    if (!tData.trends || tData.trends.length === 0) {
+                        div.innerHTML = "No historical logs for this area.";
+                        return;
+                    }
+                    div.innerHTML = "<b>Recent Logs (This Area):</b><br>" + tData.trends.map(t => `
+                        <div style="display:flex; justify-content:space-between; margin-top:5px">
+                            <span>${t.time}</span>
+                            <span style="color:${t.status==='green'?'#4ade80':'#ef4444'}">Mining: ${t.mining}%</span>
+                        </div>`).join('');
+                })
+                .catch(err => {
+                    console.error("Trend fetch error:", err);
+                    document.getElementById('trendDiv').innerHTML = "Trend data sync failed.";
+                });
+            })
+            .catch(err => {
+                console.error("Assessment fetch error:", err);
+                alert("Critical: Could not connect to the Sentinel engine. Please check internet.");
             });
         });
     </script>
