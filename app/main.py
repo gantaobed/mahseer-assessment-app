@@ -170,6 +170,10 @@ async def species_info():
     """
     return HTMLResponse(content=html)
 
+@app.get("/ping")
+def ping():
+    return {"status": "online", "timestamp": datetime.now().isoformat()}
+
 frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 @app.get("/")
 async def read_index(): return FileResponse(os.path.join(frontend_path, "index.html"))
