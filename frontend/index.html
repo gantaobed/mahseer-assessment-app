@@ -1,17 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Cauvery Sentinel</title>
+    <title>Cauvery Sentinel Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: sans-serif; overflow: hidden; }
+        body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; font-size: 15px; }
         #map { height: 100vh; width: 100vw; background: #1a1a1a; }
-        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 60vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-radius: 30px 30px 0 0; z-index: 1000; display: none; padding: 25px; box-sizing: border-box; overflow-y: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .status { padding: 15px; border-radius: 12px; font-weight: bold; margin-bottom: 15px; }
-        .green { background: rgba(34, 197, 94, 0.2); border-left: 5px solid #22c55e; }
-        .red { background: rgba(239, 68, 68, 0.2); border-left: 5px solid #ef4444; }
+        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 70vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(20px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 35px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -20px 60px rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; }
+        .status { padding: 20px; border-radius: 18px; font-weight: bold; margin-bottom: 25px; font-size: 1.1em; line-height: 1.4; border-left: 10px solid #444; }
+        .green { background: rgba(34, 197, 94, 0.15); border-left-color: #22c55e; color: #4ade80; }
+        .red { background: rgba(239, 68, 68, 0.15); border-left-color: #ef4444; color: #fca5a5; }
+        .gray { background: rgba(148, 163, 184, 0.1); border-left-color: #94a3b8; color: #cbd5e1; }
+        .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .metric-card { background: rgba(0,0,0,0.3); padding: 18px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+        .label { font-size: 0.7em; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; }
+        .val { font-size: 1.3em; font-weight: bold; color: #38bdf8; }
+        .close-btn { background: rgba(255,255,255,0.1); border: none; color: white; width: 45px; height: 45px; border-radius: 50%; font-size: 1.5em; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -20,10 +26,7 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        // Set center to Moyar Valley / Sangama area
         const map = L.map('map').setView([11.8, 77.2], 8);
-
-        // Standard Reliable Tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         map.on('click', (e) => {
@@ -36,14 +39,24 @@
             .then(data => {
                 const panel = document.getElementById('side-panel');
                 panel.style.display = 'block';
+                const d = data.details || {};
+
                 panel.innerHTML = `
                     <div class="header">
-                        <h2 style="margin:0">${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)}</h2>
-                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:white; font-size:1.5em">✕</button>
+                        <div>
+                            <span class="label">Coordinate Assessment</span>
+                            <h2 style="margin:0; font-size:1.4em;">${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}</h2>
+                        </div>
+                        <button class="close-btn" onclick="document.getElementById('side-panel').style.display='none'">✕</button>
                     </div>
-                    <div class="status ${data.color === 'green' ? 'green' : 'red'}">${data.alert}</div>
-                    <p>Bed Temp: ${data.live ? data.live.temp : '--'}°C</p>
-                    <p>Oxygen: ${data.live ? data.live.do : '--'} mg/L</p>
+                    <div class="status ${data.color}">${data.alert}</div>
+
+                    <div class="metric-grid">
+                        <div class="metric-card"><span class="label">Bed Temp</span><span class="val">${d.temp}°C</span></div>
+                        <div class="metric-card"><span class="label">Oxygen</span><span class="val">${d.oxygen} mg/L</span></div>
+                        <div class="metric-card"><span class="label">Mining Prob.</span><span class="val" style="color:#ef4444">${d.mining}%</span></div>
+                        <div class="metric-card"><span class="label">Basin</span><span class="val" style="font-size:1em">${d.basin}</span></div>
+                    </div>
                 `;
             });
         });
