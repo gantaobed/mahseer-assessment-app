@@ -80,6 +80,9 @@ def assess_habitat(data: EnvironmentData):
     # 4. Species Cross-Checks (Invasive/Hybridization)
     invasive_risk = "Tor khudree detected" if data.lat > 12.0 else "Tor putitora/Tor tor competition"
 
+    basin_name = "Kaveri Basin System" if in_kaveri else "Outside Domain"
+    constraints_status = "STABLE" if (final_mining_risk <= 20 and ph >= 6.5 and turbidity <= 50) else "VIOLATED"
+
     # Graded Status Thresholds
     if not in_kaveri:
         color, alert = "gray", "🔴 FAILED: Outside Kaveri domain."
@@ -96,7 +99,11 @@ def assess_habitat(data: EnvironmentData):
 
     return {
         "color": color, "alert": alert,
-        "audit": {"range": "PASSED" if in_kaveri else "FAILED", "trend": "RISING" if base_mining_prob > 5 else "STABLE"},
+        "audit": {
+            "range": "PASSED" if in_kaveri else "FAILED",
+            "basin": basin_name,
+            "constraints": constraints_status
+        },
         "details": {"temp": temp, "mining": final_mining_risk, "ph": ph, "turbidity": int(turbidity), "frag": fragmentation}
     }
 
