@@ -49,62 +49,56 @@ def fetch_telemetry(lat: float, lng: float):
 
 @app.post("/assess-zone")
 def assess_habitat(data: EnvironmentData):
+    # 1. Geographic Lockdown (Kaveri Basin)
     in_kaveri = 10.0 <= data.lat <= 13.5 and 75.0 <= data.lng <= 80.5
+
+    # 2. Critical Spawning Area Check (Moyar & Pambar Only)
     is_critical_range = any(z["lat_min"] <= data.lat <= z["lat_max"] and z["lng_min"] <= data.lng <= z["lng_max"] for z in PROTECTED_ZONES)
 
     tel = fetch_telemetry(data.lat, data.lng)
     temp = tel["temp"]
-    rain = tel["rain"]
 
-    # 1. Temporal Context (Monsoon Logic)
-    is_monsoon = 6 <= datetime.now().month <= 9
-    seasonal_risk_multiplier = 1.5 if is_monsoon else 1.0
-
-    # 2. Dynamic Risk Scoring & Adaptive History
+    # 3. Mafia/Mining Audit (0% tolerance for Green)
     conn = sqlite3.connect("habitat_history.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT mining FROM assessments WHERE lat BETWEEN ? AND ? ORDER BY id DESC LIMIT 5", (data.lat-0.02, data.lat+0.02))
-    past_trends = [r[0] for r in cursor.fetchall()]
+    # Check for any mining reports or historical mining levels > 0 in this ~5km area
+    cursor.execute("SELECT COUNT(*) FROM assessments WHERE lat BETWEEN ? AND ? AND mining > 0", (data.lat-0.05, data.lat+0.05))
+    past_mining_count = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM mining_reports WHERE lat BETWEEN ? AND ? ", (data.lat-0.05, data.lat+0.05))
+    mafia_reports_count = cursor.fetchone()[0]
 
-    base_mining_prob = 5 if 12.1 < data.lat < 12.4 else 0
-    if len(past_trends) > 1 and past_trends[0] > past_trends[-1]:
-        base_mining_prob += 15 # Rising trend escalation
+    # Current mining risk simulation (Mafia Hotspot)
+    current_mining_prob = 85 if 12.1 < data.lat < 12.4 else 0
 
-    final_mining_risk = base_mining_prob * seasonal_risk_multiplier
+    # Fetch last 3 trends for the UI
+    cursor.execute("SELECT timestamp, mining FROM assessments WHERE lat BETWEEN ? AND ? ORDER BY id DESC LIMIT 3", (data.lat-0.05, data.lat+0.05))
+    trends = [{"time": r[0], "mining": r[1]} for r in cursor.fetchall()]
 
-    # 3. Threat Layer Expansion
-    ph = 7.8
-    turbidity = 5 + (rain * 2) # Turbidity increases with rain/silt
-    fragmentation = 0.8 if data.lat > 12.0 else 0.2 # Simulated dam proximity
-
-    # 4. Species Cross-Checks (Invasive/Hybridization)
-    invasive_risk = "Tor khudree detected" if data.lat > 12.0 else "Tor putitora/Tor tor competition"
-
-    basin_name = "Kaveri Basin System" if in_kaveri else "Outside Domain"
-    constraints_status = "STABLE" if (final_mining_risk <= 20 and ph >= 6.5 and turbidity <= 50) else "VIOLATED"
-
-    # Graded Status Thresholds
+    # 4. Decision Logic (STRICT AS REQUESTED)
+    # GREEN ONLY if: 0% current AND 0% history AND 0 mafia reports AND inside Critical Moyar/Pambar range
     if not in_kaveri:
-        color, alert = "gray", "🔴 FAILED: Outside Kaveri domain."
-    elif final_mining_risk > 20 or ph < 6.5 or turbidity > 50:
-        color, alert = "red", f"🔴 HIGH RISK: {final_mining_risk}% Mining | Turbidity {int(turbidity)} NTU. Habitat compromised."
-    elif 0 < final_mining_risk <= 20 or not is_critical_range:
-        color, alert = "yellow", f"🟡 AMBER: {final_mining_risk}% Risk. Monitor for fragmentation and invasive {invasive_risk}."
+        color, alert = "gray", "🔴 FAILED: Outside species endemic range."
+    elif current_mining_prob > 0 or past_mining_count > 0 or mafia_reports_count > 0:
+        color, alert = "red", "⛔ ILLEGAL MINING ZONE: Habitat Integrity Lost. Spawning strictly prohibited."
+    elif not is_critical_range:
+        color, alert = "yellow", "🟡 MONITOR: Non-breeding Kaveri stretch. Spawning not supported."
     else:
-        color, alert = "green", "🟢 SANCTUARY: 0% Risk verified in critical spawning pool. Sanctuary active."
+        color, alert = "green", "🟢 PROTECTED SANCTUARY: 0% Mining detected. Verified Spawning Site."
 
+    # Log new assessment
     cursor.execute("INSERT INTO assessments (timestamp, lat, lng, status_color, alert, temp, oxygen, mining, ph, turbidity, fragmentation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                   (datetime.now().strftime("%Y-%m-%d %H:%M"), data.lat, data.lng, color, alert, temp, 7.8, final_mining_risk, ph, turbidity, fragmentation))
+                   (datetime.now().strftime("%Y-%m-%d %H:%M"), data.lat, data.lng, color, alert, temp, 7.8, current_mining_prob, 7.8, 5, 0.2))
     conn.commit(); conn.close()
 
     return {
         "color": color, "alert": alert,
         "audit": {
             "range": "PASSED" if in_kaveri else "FAILED",
-            "basin": basin_name,
-            "constraints": constraints_status
+            "basin": "Kaveri Basin System" if in_kaveri else "Outside Domain",
+            "constraints": "STABLE" if color == "green" else "VIOLATED"
         },
-        "details": {"temp": temp, "mining": final_mining_risk, "ph": ph, "turbidity": int(turbidity), "frag": fragmentation}
+        "details": {"temp": temp, "mining": current_mining_prob},
+        "trends": trends
     }
 
 @app.get("/history-view")
