@@ -1,43 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Cauvery Sentinel Pro Max</title>
+    <title>Cauvery Sentinel Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        body { margin: 0; padding: 0; background: #0b0f1a; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
         #map { height: 100vh; width: 100vw; background: #000; }
 
-        .search-bar { position: absolute; top: 15px; left: 15px; z-index: 1000; width: calc(100% - 30px); max-width: 400px; display: flex; gap: 8px; }
-        .search-input { flex-grow: 1; padding: 12px 18px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); background: rgba(20, 26, 42, 0.9); color: white; backdrop-filter: blur(10px); outline: none; }
+        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -20px 60px rgba(0,0,0,0.6); }
 
-        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 65vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(25px); border-radius: 35px 35px 0 0; z-index: 1000; display: none; padding: 25px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -20px 60px rgba(0,0,0,0.6); }
-        .status { padding: 18px; border-radius: 18px; font-weight: bold; margin: 15px 0; border-left: 8px solid #444; font-size: 1.1em; }
+        .status-banner { padding: 18px; border-radius: 18px; font-weight: bold; margin: 15px 0; border-left: 10px solid #444; font-size: 1.1em; line-height: 1.4; }
         .green { background: rgba(34, 197, 94, 0.15); border-left-color: #22c55e; color: #4ade80; }
         .red { background: rgba(239, 68, 68, 0.15); border-left-color: #ef4444; color: #fca5a5; }
         .yellow { background: rgba(234, 179, 8, 0.15); border-left-color: #eab308; color: #fde082; }
 
-        .data-source-ticker { font-size: 0.7em; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin-bottom: 10px; display: block; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
-        .card { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
-        .label { font-size: 0.7em; color: #94a3b8; display: block; margin-bottom: 5px; }
+        .section-label { font-size: 0.7em; color: #64748b; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; display: block; margin: 15px 0 8px 0; }
+        .metric-group { background: rgba(0,0,0,0.2); border-radius: 20px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .metric-item { margin-bottom: 10px; font-size: 0.95em; }
+        .metric-item b { color: #f1f5f9; }
+
+        .control-group { margin-top: 20px; }
+        .checkbox-container { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; cursor: pointer; }
+        .checkbox-container input { width: 18px; height: 18px; accent-color: #3b82f6; }
+
+        .agency-badge { font-size: 0.65em; color: #38bdf8; font-weight: bold; border-bottom: 1px solid rgba(56,189,248,0.2); padding-bottom: 5px; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
-    <div class="search-bar">
-        <input type="text" id="search" class="search-input" placeholder="🔍 Search Cauvery location (e.g. Sangama)..." onkeypress="if(event.key==='Enter') searchLocation()">
-    </div>
-
     <div id="map"></div>
     <div id="side-panel" class="side-panel"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        const map = L.map('map').setView([11.85, 77.10], 9);
+        const map = L.map('map').setView([11.8, 77.2], 8);
         L.tileLayer('https://{s}.tile.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        function searchLocation() {
-            const query = document.getElementById('search').value;
+        let activeLat, activeLng;
+
+        // Entry point for Native Android Search Bar
+        function searchLocationFromNative(query) {
             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}+Cauvery`)
             .then(res => res.json()).then(data => {
                 if(data.length > 0) {
@@ -50,32 +52,63 @@
 
         map.on('click', (e) => assessArea(e.latlng.lat, e.latlng.lng));
 
-        function assessArea(lat, lng) {
+        function assessArea(lat, lng, sand = false, upstream = false) {
+            activeLat = lat; activeLng = lng;
             fetch('/assess-zone', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({lat, lng})
+                body: JSON.stringify({lat, lng, sand_mining_present: sand, upstream_mining_active: upstream})
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(res => res.json()).then(data => {
                 const panel = document.getElementById('side-panel');
                 panel.style.display = 'block';
-                const d = data.details, a = data.audit;
+                const d = data.details;
+
                 panel.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center">
-                        <h2 style="margin:0; font-size:1.3em">${lat.toFixed(4)}, ${lng.toFixed(4)}</h2>
-                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:white; font-size:2em">✕</button>
+                    <div style="display:flex; justify-content:space-between; align-items:start">
+                        <div>
+                            <h2 style="margin:0; font-size:1.4em">Spawning Point (${lat.toFixed(2)}, ${lng.toFixed(2)})</h2>
+                        </div>
+                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:#888; font-size:2em">✕</button>
                     </div>
-                    <span class="data-source-ticker">📡 ${a.source}</span>
-                    <div class="status ${data.color}">${data.alert}</div>
-                    <div class="grid">
-                        <div class="card"><span class="label">CWC Flow</span><b>${d.flow.toFixed(2)} m3/s</b></div>
-                        <div class="card"><span class="label">IMD Temp</span><b>${d.temp}°C</b></div>
-                        <div class="card"><span class="label">Reservoir</span><b>${d.res_impact}</b></div>
-                        <div class="card"><span class="label">Mining</span><b style="color:#ef4444">${d.mining}%</b></div>
+
+                    <div class="status-banner ${data.color}">${data.alert}</div>
+
+                    <span class="section-label">Location Coordinates</span>
+                    <div class="metric-item">Lat: <b>${lat.toFixed(4)}</b>, Lng: <b>${lng.toFixed(4)}</b></div>
+
+                    <span class="section-label">Live Internet Telemetry (Open-Meteo)</span>
+                    <div class="metric-group">
+                        <span class="agency-badge">📡 ${data.agency}</span>
+                        <div class="metric-item">Water/Air Temp: <b>${d.temp}°C</b> (Ideal: 18-24°C)</div>
+                        <div class="metric-item">Dissolved Oxygen (DO): <b>${d.oxygen} mg/L</b> (Min: >5.0)</div>
+                        <div class="metric-item">Precipitation: <b>${d.rain} mm</b></div>
+                        <div class="metric-item">Flow Velocity: <b>${d.flow} m/s</b></div>
+                        <div class="metric-item">Acidity (pH): <b>${d.ph}</b></div>
+                        <div class="metric-item">Nearest Reservoir: <b>${d.res_name}</b> (${d.res_dist})</div>
                     </div>
+
+                    <span class="section-label">Interactive Threat Simulation Controls</span>
+                    <div class="control-group">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="sandCheck" ${sand ? 'checked' : ''} onchange="toggleSim()">
+                            Active Local Sand Mining (Bed Destruction)
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="upstreamCheck" ${upstream ? 'checked' : ''} onchange="toggleSim()">
+                            Active Upstream Extraction (Silt Drift)
+                        </label>
+                    </div>
+
+                    <div style="text-align:center; margin-top:30px; font-size:0.7em; color:#475569; font-weight:bold;">🐅 CAUVERY SANCTUARY SENTINEL</div>
                 `;
             });
+        }
+
+        function toggleSim() {
+            const sand = document.getElementById('sandCheck').checked;
+            const upstream = document.getElementById('upstreamCheck').checked;
+            assessArea(activeLat, activeLng, sand, upstream);
         }
     </script>
 </body>
