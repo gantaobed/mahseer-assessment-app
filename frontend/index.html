@@ -1,121 +1,118 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="dark">
 <head>
-    <title>Cauvery Sentinel Pro Max</title>
+    <title>Cauvery Sentinel Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; background: #000; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
+        :root { --bg: #0b0f1a; --glass: rgba(20, 26, 42, 0.95); --primary: #38bdf8; --text: #f1f5f9; }
+        [data-theme="light"] { --bg: #f8fafc; --glass: rgba(255, 255, 255, 0.95); --primary: #0284c7; --text: #0b0f1a; }
+
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; transition: background 0.3s; }
         #map { height: 100vh; width: 100vw; background: #000; }
 
-        /* PREMIUM PANEL DESIGN */
-        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: rgba(10, 15, 30, 0.96); backdrop-filter: blur(30px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -25px 60px rgba(0,0,0,0.8); border-top: 1px solid rgba(255,255,255,0.08); }
-        .status-banner { padding: 20px; border-radius: 20px; font-weight: 800; margin: 15px 0; border-left: 12px solid #444; font-size: 1.15em; line-height: 1.4; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
-        .green { background: rgba(34, 197, 94, 0.2); border-left-color: #22c55e; color: #4ade80; }
-        .red { background: rgba(239, 68, 68, 0.2); border-left-color: #ef4444; color: #fca5a5; }
-        .yellow { background: rgba(234, 179, 8, 0.2); border-left-color: #eab308; color: #fde082; }
+        /* PREMIUM GLASS PANEL */
+        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 70vh; background: var(--glass); backdrop-filter: blur(30px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -25px 70px rgba(0,0,0,0.7); border-top: 1px solid rgba(255,255,255,0.08); }
 
-        .section-label { font-size: 0.65em; color: #64748b; text-transform: uppercase; letter-spacing: 3px; font-weight: 900; display: block; margin: 20px 0 10px 0; }
-        .metric-group { background: rgba(255,255,255,0.03); border-radius: 24px; padding: 25px; border: 1px solid rgba(255,255,255,0.05); }
-        .metric-item { margin-bottom: 12px; font-size: 1em; display: flex; justify-content: space-between; }
-        .metric-item b { color: #38bdf8; }
+        .status-banner { padding: 20px; border-radius: 20px; font-weight: bold; margin: 15px 0; border-left: 10px solid #444; font-size: 1.1em; line-height: 1.4; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .green { background: rgba(34, 197, 94, 0.15); border-left-color: #22c55e; color: #4ade80; }
+        .red { background: rgba(239, 68, 68, 0.15); border-left-color: #ef4444; color: #fca5a5; }
+        .gray { background: rgba(148, 163, 184, 0.15); border-left-color: #94a3b8; color: #cbd5e1; }
 
-        .agency-badge { font-size: 0.6em; color: #38bdf8; font-weight: 800; background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 10px; display: inline-block; margin-bottom: 15px; }
+        .audit-card { background: rgba(0,0,0,0.25); border-radius: 25px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .audit-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9em; font-weight: 500; }
+        .pass { color: #22c55e; font-weight: bold; }
+        .fail { color: #ef4444; font-weight: bold; }
 
-        .simulation-card { background: rgba(255,255,255,0.02); padding: 20px; border-radius: 20px; margin-top: 15px; }
-        .checkbox-container { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; cursor: pointer; font-size: 0.9em; }
-        .checkbox-container input { width: 22px; height: 22px; accent-color: #3b82f6; }
+        .btn-toggle { position: absolute; top: 15px; right: 15px; z-index: 1000; background: var(--glass); border: 1px solid rgba(255,255,255,0.1); color: var(--text); padding: 10px 15px; border-radius: 25px; font-weight: bold; cursor: pointer; backdrop-filter: blur(10px); }
+        .branding { position: absolute; top: 15px; left: 15px; z-index: 1000; background: var(--glass); padding: 10px 20px; border-radius: 25px; font-weight: 800; color: var(--primary); backdrop-filter: blur(10px); font-size: 0.9em; }
+
+        .control-group { background: rgba(255,255,255,0.02); padding: 20px; border-radius: 20px; margin-top: 15px; }
+        .check-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; cursor: pointer; font-size: 0.95em; }
+        .check-item input { width: 22px; height: 22px; accent-color: var(--primary); }
     </style>
 </head>
 <body>
+    <div class="branding">🐅 CAUVERY SENTINEL PRO</div>
+    <button class="btn-toggle" onclick="toggleTheme()">🌓 THEME</button>
+
     <div id="map"></div>
     <div id="side-panel" class="side-panel"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        // PREMIUM TERRAIN DESIGN: Sourced from Esri World Imagery (Topographic Hybrid)
-        const map = L.map('map', {
-            center: [11.8, 77.5],
-            zoom: 8,
-            zoomControl: false // Cleaner look
+        // CAUVERY BASIN LOCKDOWN
+        const bounds = L.latLngBounds([10.0, 75.0], [13.5, 80.5]);
+        const map = L.map('map', { center: [11.85, 77.20], zoom: 9, maxBounds: bounds, maxBoundsViscosity: 1.0 });
+
+        L.tileLayer('https://{s}.tile.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        map.on('click', (e) => {
+            if(!bounds.contains(e.latlng)) {
+                alert("OUTSIDE ENDEMIC DOMAIN\nThe Orange-finned Mahseer is not found in this region.");
+                return;
+            }
+            assessArea(e.latlng.lat, e.latlng.lng);
         });
 
-        // High-end Satellite Hybrid Design
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
-        L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}{r}.png', { opacity: 0.6 }).addTo(map);
-
-        let activeLat, activeLng, currentMarker;
-
-        // FIXED SEARCH: Now targets specific Indian administrative boundaries
-        function searchLocationFromNative(query) {
-            console.log("Searching for:", query);
-            const cleanQuery = encodeURIComponent(query);
-            // Targeted search: Query + "India" + "Cauvery" to ensure Moyar/Kodagu results
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${cleanQuery}+India`)
-            .then(res => res.json()).then(data => {
-                if(data.length > 0) {
-                    const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
-                    map.flyTo([lat, lng], 14, { duration: 1.5 }); // Smooth flight
-                    assessArea(lat, lng);
-                } else {
-                    alert("Location not found. Try 'Moyar River' or 'Kodagu'.");
-                }
-            }).catch(err => alert("Search error. Check network."));
-        }
-
-        map.on('click', (e) => assessArea(e.latlng.lat, e.latlng.lng));
-
-        function assessArea(lat, lng, sand = false, upstream = false) {
-            activeLat = lat; activeLng = lng;
-
-            if (currentMarker) map.removeLayer(currentMarker);
-            currentMarker = L.circleMarker([lat, lng], { radius: 12, color: '#38bdf8', weight: 4, fillOpacity: 0.3 }).addTo(map);
-
+        function assessArea(lat, lng, sand=false, upstream=false) {
             fetch('/assess-zone', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({lat, lng, sand_mining_present: sand, upstream_mining_active: upstream})
+                body: JSON.stringify({lat, lng, sand_mining: sand, upstream_mining: upstream})
             })
             .then(res => res.json()).then(data => {
                 const panel = document.getElementById('side-panel');
                 panel.style.display = 'block';
-                const d = data.details;
+                const d = data.details, a = data.audit;
 
                 panel.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:start">
-                        <h2 style="margin:0; font-size:1.5em; letter-spacing:-0.5px">Scientific Spawning Audit</h2>
-                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:rgba(255,255,255,0.05); border:none; color:white; width:40px; height:40px; border-radius:20px; font-size:1.2em">✕</button>
+                        <h2 style="margin:0; font-size:1.4em">Scientific Sanctuary Audit</h2>
+                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:#888; font-size:2em">✕</button>
                     </div>
 
                     <div class="status-banner ${data.color}">${data.alert}</div>
 
-                    <div class="metric-group">
-                        <span class="agency-badge">📡 ${data.agency}</span>
-                        <div class="metric-item"><span>Bed Temp (IMD)</span> <b>${d.temp}°C</b></div>
-                        <div class="metric-item"><span>Solubility (DO)</span> <b>${d.oxygen} mg/L</b></div>
-                        <div class="metric-item"><span>Discharge (CWC)</span> <b>${d.flow.toFixed(2)} m³/s</b></div>
-                        <div class="metric-item"><span>Basin Proximity</span> <b>${d.res_name}</b></div>
+                    <div class="audit-card">
+                        <div class="audit-row"><span>Endemic Range Check</span><span class="${a.range==='PASSED'?'pass':'fail'}">${a.range}</span></div>
+                        <div class="audit-row"><span>River Basin Validation</span><span style="color:white">${a.basin}</span></div>
+                        <div class="audit-row"><span>Habitat Integrity</span><span class="${a.constraints==='STABLE'?'pass':'fail'}">${a.constraints}</span></div>
                     </div>
 
-                    <span class="section-label">Threat Simulation Hub</span>
-                    <div class="simulation-card">
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="sandCheck" ${sand ? 'checked' : ''} onchange="toggleSim()">
-                            Active Sand Mining (Bed Destruction)
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:15px; text-align:center;">
+                            <span style="font-size:0.7em; color:#888; display:block">BED TEMP</span>
+                            <b>${d.temp}°C</b>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:15px; text-align:center;">
+                            <span style="font-size:0.7em; color:#888; display:block">MINING RISK</span>
+                            <b style="color:#ef4444">${d.mining}%</b>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="check-item">
+                            <input type="checkbox" id="sandIn" ${sand?'checked':''} onchange="sim()"> Local Sand Mining Active
                         </label>
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="upstreamCheck" ${upstream ? 'checked' : ''} onchange="toggleSim()">
-                            Upstream Extraction (Silt Drift)
+                        <label class="check-item">
+                            <input type="checkbox" id="upIn" ${upstream?'checked':''} onchange="sim()"> Upstream Extraction Drift
                         </label>
                     </div>
                 `;
             });
         }
 
-        function toggleSim() {
-            const sand = document.getElementById('sandCheck').checked;
-            const upstream = document.getElementById('upstreamCheck').checked;
-            assessArea(activeLat, activeLng, sand, upstream);
+        function sim() {
+            const s = document.getElementById('sandIn').checked;
+            const u = document.getElementById('upIn').checked;
+            assessArea(map.getCenter().lat, map.getCenter().lng, s, u);
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', theme);
         }
     </script>
 </body>
