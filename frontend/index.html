@@ -41,10 +41,12 @@ html,body{
     position:absolute;left:20px;top:150px;z-index:1000;min-width:180px;
     padding:14px 16px;border-radius:16px;background:rgba(5,20,30,.96);
     border:1px solid rgba(130,220,255,.20);backdrop-filter:blur(12px);
-    box-shadow:0 12px 35px rgba(0,0,0,.30)
+    box-shadow:0 12px 35px rgba(0,0,0,.30);
+    transition: all 0.3s ease;
 }
 .legend-title,.layer-title{
-    margin-bottom:10px;color:#61e6ff;font-size:12px;font-weight:900;letter-spacing:1.5px
+    margin-bottom:10px;color:#61e6ff;font-size:12px;font-weight:900;letter-spacing:1.5px;
+    display: flex; justify-content: space-between; align-items: center;
 }
 .legend-row{margin:8px 0;font-size:12px}
 .dot{display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%}
@@ -54,7 +56,8 @@ html,body{
     position:absolute;left:20px;bottom:20px;z-index:1000;min-width:305px;
     padding:14px 16px;border-radius:16px;background:rgba(5,20,30,.96);
     border:1px solid rgba(130,220,255,.20);backdrop-filter:blur(12px);
-    box-shadow:0 12px 35px rgba(0,0,0,.30)
+    box-shadow:0 12px 35px rgba(0,0,0,.30);
+    transition: all 0.3s ease;
 }
 .layer-row{display:flex;align-items:center;gap:9px;margin:8px 0;font-size:12px}
 .layer-line{width:28px;height:4px;flex-shrink:0;border-radius:5px}
@@ -66,20 +69,21 @@ html,body{
     overflow:hidden;border-radius:22px;background:rgba(4,18,28,.96);
     border:1px solid rgba(120,220,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.45);
     backdrop-filter:blur(16px);
-    display:none; /* HIDDEN BY DEFAULT */
+    display:none;
 }
 .panel-scroll{height:100%;overflow-y:auto;padding:20px}
 .panel-scroll::-webkit-scrollbar{width:5px}
 .panel-scroll::-webkit-scrollbar-thumb{background:#27596b;border-radius:20px}
 
-.close-panel{
-    position:absolute;top:15px;right:15px;width:32px;height:32px;
-    background:rgba(255,255,255,.1);border-radius:50%;
+.close-panel, .hide-btn{
+    width:24px;height:24px;
+    background:rgba(255,255,255,0.1);border-radius:50%;
     display:flex;align-items:center;justify-content:center;
-    cursor:pointer;color:white;font-size:18px;font-weight:bold;z-index:1001;
-    pointer-events:auto
+    color:white;font-weight:bold;cursor:pointer;
+    font-size:14px;
 }
-.close-panel:hover{background:rgba(255,255,255,.2)}
+.close-panel:hover, .hide-btn:hover{background:rgba(255,255,255,0.2)}
+.close-panel{ position:absolute;top:15px;right:15px; z-index:1001; }
 
 .location-head{padding-bottom:15px;border-bottom:1px solid rgba(255,255,255,.10)}
 .location-head small{color:#62e8ff;font-weight:900;letter-spacing:2px}
@@ -162,11 +166,19 @@ button:hover{background:#1b6078}
 }
 .journey button{flex:unset;padding:8px 12px}
 
-.fish-group{display:flex;align-items:center;gap:0;font-size:14px;white-space:nowrap;filter:drop-shadow(0 2px 3px rgba(0,0,0,.65))}
-.fish-group span{display:inline-block}
-.eco-marker{font-size:22px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.7));white-space:nowrap}
-.marker-label{margin-top:2px;font-size:11px;font-weight:800;color:#fff;background:rgba(4,18,28,.88);padding:3px 6px;border-radius:6px;white-space:nowrap;border:1px solid rgba(120,220,255,.18)}
-.popup-title{font-weight:900;font-size:15px}.popup-risk{font-weight:900}.popup-list{line-height:1.5;font-size:12px}
+.bubble-controls{
+    position:absolute;left:20px;top:100px;z-index:1001;
+    display:flex;flex-direction:column;gap:10px;
+}
+.bubble{
+    width:40px;height:40px;border-radius:50%;background:rgba(5,20,30,.9);
+    border:1px solid rgba(130,220,255,.3);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);backdrop-filter:blur(8px);
+    font-size:18px;transition: transform 0.2s;
+}
+.bubble:hover{transform:scale(1.1);background:rgba(10,30,45,1)}
+
+.hidden{display:none !important}
 
 @media(max-width:850px){
     .stats{display:none}
@@ -194,15 +206,26 @@ button:hover{background:#1b6078}
     <div class="stat"><b>~800</b><span>RIVER SYSTEM KM</span></div>
 </div>
 
-<div class="legend">
-    <div class="legend-title">RISK LEVEL</div>
+<div class="bubble-controls">
+    <div class="bubble" title="Risk Legend" onclick="toggleLegend()">📊</div>
+    <div class="bubble" title="Map Layers" onclick="toggleLayers()">🗺️</div>
+</div>
+
+<div class="legend" id="legendBox">
+    <div class="legend-title">
+        <span>RISK LEVEL</span>
+        <div class="hide-btn" onclick="toggleLegend()">✕</div>
+    </div>
     <div class="legend-row"><span class="dot low"></span>Low Risk</div>
     <div class="legend-row"><span class="dot medium"></span>Medium Risk</div>
     <div class="legend-row"><span class="dot high"></span>High Risk</div>
 </div>
 
-<div class="layer-box">
-    <div class="layer-title">MAP LAYERS</div>
+<div class="layer-box" id="layerBox">
+    <div class="layer-title">
+        <span>MAP LAYERS</span>
+        <div class="hide-btn" onclick="toggleLayers()">✕</div>
+    </div>
     <div class="layer-row"><span class="layer-line" style="background:#18aee0"></span>Main Cauvery</div>
     <div class="layer-row"><span class="layer-line dotted" style="border-color:#008b76"></span>Kabini</div>
     <div class="layer-row"><span class="layer-line dotted" style="border-color:#b65b00"></span>Moyar</div>
@@ -515,6 +538,22 @@ function velocityAssessment(v){
     if(v>=0.8 && v<=1.5) return {label:"🟢 HIGH SUITABILITY FOR SPAWNING",cls:"green",suit:"High"};
     if(v>2.2) return {label:"🔴 SPAWNING CANNOT TAKE PLACE",cls:"red",suit:"Unsuitable"};
     return {label:"🟠 LOWER SUITABILITY / HIGH-FLOW CONDITIONS",cls:"orange",suit:"Lower"};
+}
+
+function riskClassFromAudit(site){
+    if(site.mining==="HIGH" || site.overlap) return "high";
+    if(site.mining==="MODERATE") return "medium";
+    return site.risk;
+}
+
+function toggleLegend() {
+    const box = document.getElementById("legendBox");
+    box.classList.toggle("hidden");
+}
+
+function toggleLayers() {
+    const box = document.getElementById("layerBox");
+    box.classList.toggle("hidden");
 }
 
 function closePanel(){
