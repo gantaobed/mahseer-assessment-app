@@ -9,7 +9,7 @@ import sqlite3
 import os
 from datetime import datetime, timedelta
 
-app = FastAPI(title="Cauvery Sentinel Pro")
+app = FastAPI(title="MAHCAU Sentinel")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,15 +23,15 @@ DB_NAME = "habitat_sentinel_ultimate.db"
 # --- CAUVERY BASIN LOCKDOWN ---
 CAUVERY_BOUNDS = {"lat_min": 10.0, "lat_max": 13.5, "lng_min": 75.0, "lng_max": 80.5}
 
-# --- SCIENTIFIC DATA (Tor remadeviae) ---
+# --- SCIENTIFIC DATA (Tor remadeviae - Wikipedia Sourced) ---
 SPECIES_FACTS = {
     "name": "Orange-finned Mahseer (Tor remadeviae)",
     "alias": "Hump-backed Mahseer",
     "status": "Critically Endangered (IUCN)",
     "basin": "Endemic to Kaveri River Basin Only",
-    "traits": "Prominent hump above pre-opercle, kink in pre-opercule, bright orange caudal fin.",
-    "fame": "Largest and hardest fighting freshwater fish in the world.",
-    "threats": ["Dams", "River Fragmentation", "Invasive Species (T. khudree)", "Sand Mining", "Dynamite Fishing"]
+    "traits": "Prominent hump originating above the pre-opercle, distinctive kink in the pre-opercule, terminal mouth position, and its bright orange caudal fin.",
+    "fame": "Anglers proclaim it as the 'largest and hardest fighting freshwater fish in the world'.",
+    "threats": ["Dams", "River Fragmentation", "Invasive Species (T. khudree, T. putitora)", "Sand Mining", "Dynamite Fishing"]
 }
 
 def init_db():
@@ -60,16 +60,12 @@ def fetch_telemetry(lat: float, lng: float):
 
 @app.post("/assess-zone")
 def assess_habitat(data: EnvironmentData):
-    # 1. GEOGRAPHIC AUDIT
     in_range = CAUVERY_BOUNDS["lat_min"] <= data.lat <= CAUVERY_BOUNDS["lat_max"] and \
                CAUVERY_BOUNDS["lng_min"] <= data.lng <= CAUVERY_BOUNDS["lng_max"]
 
     tel = fetch_telemetry(data.lat, data.lng)
-
-    # 2. MINING & MAFIA PROBABILITY (0% Tolerance Logic)
     mining_prob = 85 if 12.1 < data.lat < 12.4 else (15 if data.upstream_mining else (50 if data.sand_mining else 0))
 
-    # 3. SCIENTIFIC VETO LOGIC
     range_audit = "PASSED" if in_range else "FAILED"
     basin_audit = "Kaveri Basin System" if in_range else "Outside Endemic Domain"
     constraint_audit = "STABLE" if (mining_prob == 0 and 19 <= tel["temp"] <= 25) else "VIOLATED"
@@ -77,13 +73,12 @@ def assess_habitat(data: EnvironmentData):
     if not in_range:
         color, alert = "gray", f"🔴 DOMAIN ERROR: {SPECIES_FACTS['name']} is NOT found here. Restricted to Kaveri basin."
     elif mining_prob > 0:
-        color, alert = "red", "⛔ ILLEGAL MINING ZONE: Habitat Integrity Lost. Spawning strictly prohibited."
+        color, alert = "red", f"⛔ ILLEGAL MINING ZONE: Spawning strictly prohibited. Mining Risk: {mining_prob}%"
     elif not constraint_audit == "STABLE":
-        color, alert = "yellow", "🟡 MONITOR: Marginal spawning window due to environmental stress."
+        color, alert = "red", f"🔴 CRITICAL: Thermal Spike ({tel['temp']}°C). Eggs rot or hatch prematurely (Ideal: 18-24°C)."
     else:
-        color, alert = "green", "🟢 PROTECTED SANCTUARY: 0% Mining History. Verified Spawning Site."
+        color, alert = "green", "🟢 PROTECTED SANCTUARY: 0% Mining detected. Verified Spawning Site."
 
-    # Save to History for research
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO assessments (timestamp, lat, lng, status_color, alert, mining_risk, temp, range_audit, basin_audit, constraint_audit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -103,17 +98,19 @@ async def history_view():
     cursor.execute("SELECT timestamp, alert, mining_risk, lat, lng FROM assessments ORDER BY id DESC LIMIT 50")
     rows = cursor.fetchall()
     conn.close()
-    html = "<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body { background:#0f172a; color:white; font-family:sans-serif; padding:15px; font-size:16px; } .card { background:#1e293b; padding:15px; border-radius:12px; margin-bottom:10px; border-left:6px solid #3b82f6; } .risk { color:#ef4444; font-weight:bold; }</style></head><body><h2>Cauvery Sentinel Study Logs</h2>"
+    # Decreased font size (16px) for history view
+    html = "<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body { background:#06141c; color:white; font-family:sans-serif; padding:15px; font-size:16px; } .card { background:#0b2432; padding:12px; border-radius:12px; margin-bottom:10px; border-left:4px solid #62e8ff; } .risk { color:#ff3d61; font-weight:bold; }</style></head><body><h2>MAHCAU: Study Logs</h2>"
     for r in rows: html += f"<div class='card'><b>{r[1]}</b><br><small>{r[0]} | Risk: <span class='risk'>{r[2]}%</span> | Loc: {r[3]}, {r[4]}</small></div>"
     return HTMLResponse(content=html+"</body></html>")
 
 @app.get("/species-info")
 async def species_info():
-    html = f"""<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body {{ background:#0f172a; color:white; font-family:sans-serif; padding:20px; font-size:16px; line-height:1.6; }} .card {{ background:#1e293b; padding:20px; border-radius:15px; margin-bottom:15px; border:1px solid #334155; }} h2 {{ color:#38bdf8; font-size:24px; }} h3 {{ color:#fbbf24; font-size:18px; }} </style></head><body>
+    # Decreased font size (16px) for species info with full Wikipedia data
+    html = f"""<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body {{ background:#06141c; color:white; font-family:sans-serif; padding:20px; font-size:16px; line-height:1.4; }} .card {{ background:#0b2432; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid rgba(130,220,255,.2); }} h2 {{ color:#62e8ff; font-size:22px; }} h3 {{ color:#ffc21a; font-size:18px; }} </style></head><body>
     <h2>{SPECIES_FACTS['name']}</h2>
-    <div class='card'><h3>🐟 Characteristics</h3><p>{SPECIES_FACTS['traits']}</p></div>
-    <div class='card'><h3>🌍 Geographic Restriction</h3><p><b>{SPECIES_FACTS['basin']}</b>. Found in Western Ghats. {SPECIES_FACTS['fame']}</p></div>
-    <div class='card' style='border-left:8px solid #ef4444'><h3>⚠️ Conservation: {SPECIES_FACTS['status']}</h3><p><b>Threats:</b> {", ".join(SPECIES_FACTS['threats'])}</p></div>
+    <div class='card'><h3>🐟 Characteristics (Wikipedia)</h3><p>{SPECIES_FACTS['traits']}</p></div>
+    <div class='card'><h3>🌍 Distribution</h3><p><b>{SPECIES_FACTS['basin']}</b>. Restricted to the Kaveri basin. {SPECIES_FACTS['fame']}</p></div>
+    <div class='card' style='border-left:5px solid #ff3d61'><h3>⚠️ IUCN: {SPECIES_FACTS['status']}</h3><p><b>Threats:</b> {", ".join(SPECIES_FACTS['threats'])}</p></div>
     </body></html>"""
     return HTMLResponse(content=html)
 
