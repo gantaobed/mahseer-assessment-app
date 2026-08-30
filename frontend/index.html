@@ -1,119 +1,840 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-    <title>Cauvery Sentinel Pro</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <style>
-        :root { --bg: #0b0f1a; --glass: rgba(20, 26, 42, 0.95); --primary: #38bdf8; --text: #f1f5f9; }
-        [data-theme="light"] { --bg: #f8fafc; --glass: rgba(255, 255, 255, 0.95); --primary: #0284c7; --text: #0b0f1a; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cauvery Ecological Monitoring</title>
 
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; transition: background 0.3s; }
-        #map { height: 100vh; width: 100vw; background: #000; }
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-        /* PREMIUM GLASS PANEL */
-        .side-panel { position: fixed; bottom: 0; left: 0; width: 100%; height: 70vh; background: var(--glass); backdrop-filter: blur(30px); border-radius: 40px 40px 0 0; z-index: 1000; display: none; padding: 30px; box-sizing: border-box; overflow-y: auto; box-shadow: 0 -25px 70px rgba(0,0,0,0.7); border-top: 1px solid rgba(255,255,255,0.08); }
+<style>
+*{box-sizing:border-box}
+html,body{
+    margin:0;width:100%;height:100%;overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    background:#06141c;color:white
+}
+#map{position:absolute;inset:0;z-index:1}
 
-        .status-banner { padding: 20px; border-radius: 20px; font-weight: bold; margin: 15px 0; border-left: 10px solid #444; font-size: 1.1em; line-height: 1.4; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .green { background: rgba(34, 197, 94, 0.15); border-left-color: #22c55e; color: #4ade80; }
-        .red { background: rgba(239, 68, 68, 0.15); border-left-color: #ef4444; color: #fca5a5; }
-        .gray { background: rgba(148, 163, 184, 0.15); border-left-color: #94a3b8; color: #cbd5e1; }
+.header{
+    position:absolute;top:0;left:0;right:0;z-index:1000;padding:18px 25px;
+    background:linear-gradient(180deg,rgba(4,18,28,.97),rgba(4,18,28,.70),transparent);
+    pointer-events:none
+}
+.eyebrow{color:#62e8ff;font-size:12px;font-weight:900;letter-spacing:3px}
+.header h1{margin:4px 0;font-size:28px;letter-spacing:-.5px}
+.header p{margin:0;color:#c8d8df;font-size:13px}
 
-        .audit-card { background: rgba(0,0,0,0.25); border-radius: 25px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
-        .audit-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.9em; font-weight: 500; }
-        .pass { color: #22c55e; font-weight: bold; }
-        .fail { color: #ef4444; font-weight: bold; }
+.stats{
+    position:absolute;top:18px;right:25px;z-index:1001;
+    display:flex;gap:12px
+}
+.stat{
+    min-width:110px;padding:10px 14px;text-align:center;border-radius:14px;
+    background:rgba(5,22,32,.88);border:1px solid rgba(130,220,255,.18);
+    backdrop-filter:blur(12px)
+}
+.stat b{display:block;font-size:21px}
+.stat span{color:#9db1ba;font-size:9px;letter-spacing:1.5px}
 
-        .btn-toggle { position: absolute; top: 15px; right: 15px; z-index: 1000; background: var(--glass); border: 1px solid rgba(255,255,255,0.1); color: var(--text); padding: 10px 15px; border-radius: 25px; font-weight: bold; cursor: pointer; backdrop-filter: blur(10px); }
-        .branding { position: absolute; top: 15px; left: 15px; z-index: 1000; background: var(--glass); padding: 10px 20px; border-radius: 25px; font-weight: 800; color: var(--primary); backdrop-filter: blur(10px); font-size: 0.9em; }
+.legend{
+    position:absolute;left:20px;top:150px;z-index:1000;min-width:180px;
+    padding:14px 16px;border-radius:16px;background:rgba(5,20,30,.96);
+    border:1px solid rgba(130,220,255,.20);backdrop-filter:blur(12px);
+    box-shadow:0 12px 35px rgba(0,0,0,.30)
+}
+.legend-title,.layer-title{
+    margin-bottom:10px;color:#61e6ff;font-size:12px;font-weight:900;letter-spacing:1.5px
+}
+.legend-row{margin:8px 0;font-size:12px}
+.dot{display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%}
+.low{background:#32e875}.medium{background:#ffc21a}.high{background:#ff3d61}
 
-        .control-group { background: rgba(255,255,255,0.02); padding: 20px; border-radius: 20px; margin-top: 15px; }
-        .check-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; cursor: pointer; font-size: 0.95em; }
-        .check-item input { width: 22px; height: 22px; accent-color: var(--primary); }
-    </style>
+.layer-box{
+    position:absolute;left:20px;bottom:20px;z-index:1000;min-width:305px;
+    padding:14px 16px;border-radius:16px;background:rgba(5,20,30,.96);
+    border:1px solid rgba(130,220,255,.20);backdrop-filter:blur(12px);
+    box-shadow:0 12px 35px rgba(0,0,0,.30)
+}
+.layer-row{display:flex;align-items:center;gap:9px;margin:8px 0;font-size:12px}
+.layer-line{width:28px;height:4px;flex-shrink:0;border-radius:5px}
+.layer-line.dotted{height:0;border-top-width:4px;border-top-style:dotted;border-radius:0}
+.emoji-key{width:28px;flex-shrink:0;text-align:center;font-size:17px;line-height:1}
+
+.panel{
+    position:absolute;top:115px;right:20px;bottom:20px;width:410px;z-index:1000;
+    overflow:hidden;border-radius:22px;background:rgba(4,18,28,.96);
+    border:1px solid rgba(120,220,255,.22);box-shadow:0 20px 60px rgba(0,0,0,.45);
+    backdrop-filter:blur(16px)
+}
+.panel-scroll{height:100%;overflow-y:auto;padding:20px}
+.panel-scroll::-webkit-scrollbar{width:5px}
+.panel-scroll::-webkit-scrollbar-thumb{background:#27596b;border-radius:20px}
+
+.location-head{padding-bottom:15px;border-bottom:1px solid rgba(255,255,255,.10)}
+.location-head small{color:#62e8ff;font-weight:900;letter-spacing:2px}
+.location-head h2{margin:5px 0;font-size:25px}
+.risk{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:20px;font-size:11px;font-weight:900}
+.risk.low{color:#48ef83;background:rgba(50,232,117,.12)}
+.risk.medium{color:#ffd02e;background:rgba(255,194,26,.12)}
+.risk.high{color:#ff5572;background:rgba(255,61,97,.12)}
+.description{color:#b9cbd2;line-height:1.5;font-size:13px}
+
+.section{margin-top:18px}
+.section-title{margin-bottom:10px;color:#61e6ff;font-size:12px;font-weight:900;letter-spacing:2px}
+
+.parameter{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.parameter-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.parameter-name{color:#d6e1e5;font-size:13px}
+.value{font-size:15px;font-weight:900}
+.good{color:#38eb7b}.warn{color:#ffc21a}.bad{color:#ff4d68}
+.ideal{margin-top:4px;color:#8ea4ae;font-size:10px}
+
+.substrate{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px}
+.substrate-icon{width:12px;height:12px;flex-shrink:0;border-radius:50%}
+.bedrock,.sand{background:#ff4d68}.fine-gravel{background:#ffc21a}.coarse-gravel,.pebble{background:#38eb7b}
+
+.rain-box{
+    margin-top:10px;padding:16px;border-radius:15px;
+    background:linear-gradient(135deg,#07364c,#0b2432)
+}
+.rain-number{font-size:30px;font-weight:900}
+.rain-status{margin-top:5px;font-size:12px;font-weight:900}
+input[type=range]{width:100%;accent-color:#54dfff}
+
+.audit{
+    margin-top:10px;padding:15px;border-radius:16px;
+    background:linear-gradient(145deg,#0b2635,#071923);
+    border:1px solid rgba(120,220,255,.16)
+}
+.audit-banner{
+    padding:13px;border-radius:13px;margin-bottom:12px;
+    border-left:5px solid #38eb7b;background:rgba(50,232,117,.13)
+}
+.audit-banner.warn{border-left-color:#ffc21a;background:rgba(255,194,26,.12)}
+.audit-banner.bad{border-left-color:#ff3d61;background:rgba(255,61,97,.12)}
+.audit-banner-title{font-size:15px;font-weight:900}
+.audit-banner-text{font-size:12px;line-height:1.45;margin-top:5px;color:#d7e4e8}
+.audit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.audit-item{
+    padding:10px;border-radius:10px;background:rgba(255,255,255,.045);
+    border:1px solid rgba(255,255,255,.06)
+}
+.audit-label{font-size:9px;color:#8ea4ae;letter-spacing:1px;text-transform:uppercase}
+.audit-value{margin-top:4px;font-size:13px;font-weight:900}
+.audit-check{
+    display:flex;justify-content:space-between;gap:8px;
+    padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);
+    font-size:12px
+}
+.audit-check:last-child{border-bottom:0}
+.green{color:#38eb7b}.orange{color:#ffc21a}.red{color:#ff4d68}
+
+.velocity-card{
+    margin-top:10px;padding:14px;border-radius:14px;
+    background:#0b2635;border:1px solid rgba(84,229,255,.14)
+}
+.velocity-number{font-size:27px;font-weight:900}
+.velocity-tag{font-size:12px;font-weight:900;margin-top:3px}
+.source-note{font-size:9px;color:#7f969f;line-height:1.4;margin-top:8px}
+
+.buttons{display:flex;gap:8px;margin-top:15px}
+button{
+    flex:1;border:0;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;
+    background:#123b4d;color:white
+}
+button:hover{background:#1b6078}
+
+.journey{
+    position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:1001;
+    display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:14px;
+    background:rgba(4,18,28,.95);border:1px solid rgba(100,230,255,.3);font-size:12px
+}
+.journey button{flex:unset;padding:8px 12px}
+
+.fish-group{display:flex;align-items:center;gap:0;font-size:14px;white-space:nowrap;filter:drop-shadow(0 2px 3px rgba(0,0,0,.65))}
+.fish-group span{display:inline-block}
+.eco-marker{font-size:22px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.7));white-space:nowrap}
+.marker-label{margin-top:2px;font-size:11px;font-weight:800;color:#fff;background:rgba(4,18,28,.88);padding:3px 6px;border-radius:6px;white-space:nowrap;border:1px solid rgba(120,220,255,.18)}
+.popup-title{font-weight:900;font-size:15px}.popup-risk{font-weight:900}.popup-list{line-height:1.5;font-size:12px}
+
+@media(max-width:850px){
+    .stats{display:none}
+    .header{padding:12px 15px}.header h1{font-size:21px}
+    .legend{left:10px;top:140px}
+    .layer-box{left:10px;bottom:10px;min-width:260px}
+    .panel{top:auto;left:10px;right:10px;bottom:10px;width:auto;height:48%}
+    .journey{display:none}
+}
+</style>
 </head>
+
 <body>
-    <div class="branding">🐅 CAUVERY SENTINEL PRO</div>
-    <button class="btn-toggle" onclick="toggleTheme()">🌓 THEME</button>
+<div id="map"></div>
 
-    <div id="map"></div>
-    <div id="side-panel" class="side-panel"></div>
+<div class="header">
+    <div class="eyebrow">CAUVERY RIVER • ECOLOGICAL MONITORING</div>
+    <h1>Interactive Ecological Risk Map</h1>
+    <p>Explore river health, tributaries, habitat pressure and Orange-finned Mahseer population zones.</p>
+</div>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        // CAUVERY BASIN LOCKDOWN
-        const bounds = L.latLngBounds([10.0, 75.0], [13.5, 80.5]);
-        const map = L.map('map', { center: [11.85, 77.20], zoom: 9, maxBounds: bounds, maxBoundsViscosity: 1.0 });
+<div class="stats">
+    <div class="stat"><b>6</b><span>MONITORING SITES</span></div>
+    <div class="stat"><b>2</b><span>HIGH RISK</span></div>
+    <div class="stat"><b>~800</b><span>RIVER SYSTEM KM</span></div>
+</div>
 
-        L.tileLayer('https://{s}.tile.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+<div class="legend">
+    <div class="legend-title">RISK LEVEL</div>
+    <div class="legend-row"><span class="dot low"></span>Low Risk</div>
+    <div class="legend-row"><span class="dot medium"></span>Medium Risk</div>
+    <div class="legend-row"><span class="dot high"></span>High Risk</div>
+</div>
 
-        map.on('click', (e) => {
-            if(!bounds.contains(e.latlng)) {
-                alert("OUTSIDE ENDEMIC DOMAIN\nThe Orange-finned Mahseer is not found in this region.");
-                return;
-            }
-            assessArea(e.latlng.lat, e.latlng.lng);
-        });
+<div class="layer-box">
+    <div class="layer-title">MAP LAYERS</div>
+    <div class="layer-row"><span class="layer-line" style="background:#18aee0"></span>Main Cauvery</div>
+    <div class="layer-row"><span class="layer-line dotted" style="border-color:#008b76"></span>Kabini</div>
+    <div class="layer-row"><span class="layer-line dotted" style="border-color:#b65b00"></span>Moyar</div>
+    <div class="layer-row"><span class="layer-line dotted" style="border-color:#4b2499"></span>Bhavani</div>
+    <div class="layer-row"><span class="layer-line dotted" style="border-color:#7a6800"></span>Pambar</div>
+    <div class="layer-row"><span class="emoji-key">🐠🐠</span>Orange-finned Mahseer population</div>
+<div class="layer-row"><span class="emoji-key">⛏️</span>Sand-Mining Monitoring</div>
+    <div class="layer-row"><span class="emoji-key">⚠️</span>Mahseer + Sand-Mining Overlap</div>
+    <div class="layer-row"><span class="emoji-key">🏖️</span>Coastal Delta Reference</div>
+</div>
 
-        function assessArea(lat, lng, sand=false, upstream=false) {
-            fetch('/assess-zone', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({lat, lng, sand_mining: sand, upstream_mining: upstream})
-            })
-            .then(res => res.json()).then(data => {
-                const panel = document.getElementById('side-panel');
-                panel.style.display = 'block';
-                const d = data.details, a = data.audit;
+<div class="journey">
+    <b id="journeyText">🌊 Talakaveri → Bay of Bengal</b>
+    <button onclick="animateJourney()">▶ Trace River</button>
+</div>
 
-                panel.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:start">
-                        <h2 style="margin:0; font-size:1.4em">Scientific Sanctuary Audit</h2>
-                        <button onclick="document.getElementById('side-panel').style.display='none'" style="background:none; border:none; color:#888; font-size:2em">✕</button>
-                    </div>
+<div class="panel">
+<div class="panel-scroll">
 
-                    <div class="status-banner ${data.color}">${data.alert}</div>
+<div class="location-head">
+    <small id="selectionType">SELECTED MONITORING SITE</small>
+    <h2 id="siteName">Talakaveri</h2>
+    <div id="riskBadge" class="risk low">● LOW RISK</div>
+    <p id="siteDescription" class="description">Cauvery source region in the Brahmagiri range of the Western Ghats.</p>
+</div>
 
-                    <div class="audit-card">
-                        <div class="audit-row"><span>Endemic Range Check</span><span class="${a.range==='PASSED'?'pass':'fail'}">${a.range}</span></div>
-                        <div class="audit-row"><span>River Basin Validation</span><span style="color:white">${a.basin}</span></div>
-                        <div class="audit-row"><span>Habitat Integrity</span><span class="${a.constraints==='STABLE'?'pass':'fail'}">${a.constraints}</span></div>
-                    </div>
+<div class="section">
+    <div class="section-title">🧪 ECOLOGICAL PARAMETERS</div>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:15px; text-align:center;">
-                            <span style="font-size:0.7em; color:#888; display:block">BED TEMP</span>
-                            <b>${d.temp}°C</b>
-                        </div>
-                        <div style="background:rgba(0,0,0,0.3); padding:15px; border-radius:15px; text-align:center;">
-                            <span style="font-size:0.7em; color:#888; display:block">MINING RISK</span>
-                            <b style="color:#ef4444">${d.mining}%</b>
-                        </div>
-                    </div>
+    <div class="parameter">
+        <div class="parameter-row"><span class="parameter-name">Dissolved Oxygen</span><span id="doValue" class="value good">8.6 mg/L</span></div>
+        <div id="doIdeal" class="ideal">CPCB criterion: &gt; 5.0 mg/L</div>
+    </div>
 
-                    <div class="control-group">
-                        <label class="check-item">
-                            <input type="checkbox" id="sandIn" ${sand?'checked':''} onchange="sim()"> Local Sand Mining Active
-                        </label>
-                        <label class="check-item">
-                            <input type="checkbox" id="upIn" ${upstream?'checked':''} onchange="sim()"> Upstream Extraction Drift
-                        </label>
-                    </div>
-                `;
-            });
+    <div class="parameter">
+        <div class="parameter-row"><span class="parameter-name">Water Temperature</span><span id="tempValue" class="value good">20°C</span></div>
+        <div id="tempIdeal" class="ideal">CPCB observed range for linked station</div>
+    </div>
+
+    <div class="parameter">
+        <div class="parameter-row"><span class="parameter-name">Water Acidity (pH)</span><span id="phValue" class="value good">7.9</span></div>
+        <div class="ideal">CPCB criterion: 6.5–8.5</div>
+    </div>
+
+    <div class="parameter">
+        <div class="parameter-row"><span class="parameter-name">BOD</span><span id="bodValue" class="value good">1.0 mg/L</span></div>
+        <div class="ideal">CPCB criterion: &lt; 3.0 mg/L</div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">🪨 SPAWNING SUBSTRATE</div>
+    <div class="substrate"><span class="substrate-icon bedrock"></span>Bedrock</div>
+    <div class="substrate"><span class="substrate-icon sand"></span>Sand / Silt (&lt;2 mm)</div>
+    <div class="substrate"><span class="substrate-icon fine-gravel"></span>Fine Gravel (2–16 mm)</div>
+    <div class="substrate"><span class="substrate-icon coarse-gravel"></span>Coarse Gravel (16–64 mm)</div>
+    <div class="substrate"><span class="substrate-icon pebble"></span>Pebble / Cobble (64–256 mm)</div>
+</div>
+
+<div class="section">
+    <div class="section-title">🌊 WATER VELOCITY → SPAWNING</div>
+    <div class="velocity-card">
+        <div><span id="velocityValue" class="velocity-number">1.10</span> <small>m/s</small></div>
+        <div id="velocityStatus" class="velocity-tag green">🟢 HIGH SUITABILITY FOR SPAWNING</div>
+        <div class="source-note">
+            Velocity is a modelled/representative ecological value for the selected river section;
+            CPCB water-quality datasets do not provide a velocity measurement for every map point.
+            Suitability thresholds follow the project rules.
+        </div>
+    </div>
+    <div class="ideal" style="line-height:1.7">
+        0.8–1.5 m/s → High suitability<br>
+        0.4–0.7 m/s → Moderate suitability<br>
+        &lt;0.4 m/s → Spawning cannot take place<br>
+        1.5–2.2 m/s → Lower suitability / high-flow conditions<br>
+        &gt;2.2 m/s → Spawning cannot take place
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">🌧️ RAINFALL → RISK ENGINE</div>
+    <div class="rain-box">
+        <div><span id="rainNumber" class="rain-number">24</span><small> mm/day</small></div>
+        <div id="rainStatus" class="rain-status warn">🟠 WARNING — HEAVY RAIN</div>
+    </div>
+    <div style="margin-top:12px"><input id="rainSlider" type="range" min="0" max="80" value="24" oninput="updateRain(this.value)"></div>
+    <div class="ideal" style="line-height:1.7">
+        0–4.99 mm → Normal<br>5–20 mm → Moderate<br>20.01–50 mm → Heavy rain<br>&gt;50 mm → Extreme rain
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">🛡️ SCIENTIFIC SANCTUARY AUDIT</div>
+    <div class="audit">
+        <div id="auditBanner" class="audit-banner">
+            <div id="auditBannerTitle" class="audit-banner-title">🟢 PROTECTED / SUITABLE ZONE</div>
+            <div id="auditBannerText" class="audit-banner-text">Habitat condition is comparatively stable for this demonstration section.</div>
+        </div>
+
+        <div class="audit-check"><span>Endemic Range Check</span><b class="green">PASSED</b></div>
+        <div class="audit-check"><span>River Basin Validation</span><b class="green">CAUVERY BASIN SYSTEM</b></div>
+        <div class="audit-check"><span>Habitat Integrity</span><b id="habitatIntegrity" class="green">STABLE</b></div>
+
+        <div class="audit-grid" style="margin-top:10px">
+            <div class="audit-item">
+                <div class="audit-label">Bed Temperature</div>
+                <div id="bedTemp" class="audit-value">22°C</div>
+            </div>
+            <div class="audit-item">
+                <div class="audit-label">Mining Risk</div>
+                <div id="miningRisk" class="audit-value green">LOW</div>
+            </div>
+        </div>
+
+        <div style="margin-top:10px">
+            <div class="audit-check"><span>Local sand-mining concern</span><b id="localMining" class="green">LOW</b></div>
+            <div class="audit-check"><span>Upstream extraction influence</span><b id="upstreamMining" class="green">LOW</b></div>
+            <div class="audit-check"><span>Mahseer / mining overlap</span><b id="overlapStatus" class="green">NOT FLAGGED</b></div>
+        </div>
+
+        <div class="source-note">
+            Water-quality values shown here are linked to the nearest/most relevant CPCB monitoring station where available.
+            Mining flags are map-layer indicators, not official legal findings or official percentage scores.
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">⚙️ ECOLOGICAL RISK ENGINE</div>
+    <p class="description">Environmental stress + habitat disturbance + spawning suitability contribute to the ecological risk assessment.</p>
+    <div id="logicResult" style="padding:12px;border-radius:12px;background:#0b2635;font-size:12px;line-height:1.5">
+        <b>Spawning suitability:</b> High
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">📍 LOCATION STORY</div>
+    <p id="locationStory" class="description">Click a monitoring point or click directly on the Cauvery to inspect the nearest river section.</p>
+</div>
+
+<div class="buttons">
+    <button onclick="showJourneyInfo()">🌊 River Journey</button>
+    <button onclick="showTributaries()">🌿 Tributaries</button>
+</div>
+
+<div id="extraInfo" class="section" style="display:none"></div>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+
+/* =====================================================
+   MAP
+===================================================== */
+
+const map=L.map("map",{zoomControl:true,minZoom:6,maxZoom:12}).setView([11.70,77.10],7.2);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    attribution:"© OpenStreetMap contributors",maxZoom:19
+}).addTo(map);
+
+/* =====================================================
+   MAIN CAUVERY
+===================================================== */
+
+const cauveryRoute=[
+[12.3830,75.5550],[12.4200,75.6500],[12.4500,75.7800],[12.4600,75.9500],
+[12.4300,76.0500],[12.4200,76.2000],[12.4000,76.3800],[12.4200,76.5700],
+[12.3500,76.7000],[12.2500,76.8200],[12.2200,76.9090],[12.2500,77.0000],
+[12.2700,77.1200],[12.3000,77.1700],[12.3000,77.2500],[12.2800,77.3500],
+[12.2580,77.4480],[12.2300,77.5200],[12.1900,77.6200],[12.1200,77.7800],
+[11.9500,77.8400],[11.8100,77.8000],[11.7000,77.7600],[11.6000,77.7200],
+[11.5000,77.6900],[11.4470,77.6840],[11.2500,77.7800],[11.1000,77.8800],
+[10.9600,78.0800],[10.9200,78.2500],[10.8800,78.4500],[10.8300,78.6500],
+[10.8300,78.8000],[10.8500,79.0000],[10.8300,79.2000],[10.9000,79.4000],
+[10.9800,79.5500],[11.0800,79.7000],[11.1500,79.8500]
+];
+
+L.polyline(cauveryRoute,{color:"#073d60",weight:11,opacity:.95,lineCap:"round",lineJoin:"round"}).addTo(map);
+const cauveryLine=L.polyline(cauveryRoute,{color:"#18aee0",weight:6,opacity:.98,lineCap:"round",lineJoin:"round"}).addTo(map);
+
+/* =====================================================
+   TRIBUTARIES
+===================================================== */
+
+function drawTributary(route,color){
+    return L.polyline(route,{color,weight:5,opacity:.95,dashArray:"3 10",lineCap:"round",lineJoin:"round"}).addTo(map);
+}
+
+drawTributary([
+[11.9000,76.0800],[11.9500,76.1800],[12.0000,76.2800],[12.0500,76.4000],
+[12.1000,76.5000],[12.1500,76.6000],[12.1800,76.7000],[12.2000,76.8000],
+[12.2150,76.8600],[12.2200,76.9090]],"#008b76");
+
+drawTributary([
+[11.5700,76.6200],[11.5500,76.6800],[11.5300,76.7400],[11.5100,76.8000],
+[11.5000,76.8600],[11.4900,76.9000],[11.4800,76.9300],[11.4600,76.9600]],"#b65b00");
+
+drawTributary([
+[11.2500,76.6500],[11.2700,76.7000],[11.2900,76.7600],[11.3100,76.8200],
+[11.3300,76.8800],[11.3900,76.9300],[11.4300,77.0000],[11.4500,77.1000],
+[11.4600,77.2000],[11.4600,77.3000],[11.4500,77.4000],[11.4500,77.5000],
+[11.4470,77.6000],[11.4470,77.6840]],"#4b2499");
+
+drawTributary([
+[10.1000,77.1200],[10.1200,77.1400],[10.1400,77.1600],[10.1700,77.1800],
+[10.2000,77.2000],[10.2300,77.2200],[10.2600,77.2400],[10.2900,77.2700],
+[10.3200,77.3000],[10.3500,77.3300],[10.3800,77.3600],[10.4100,77.3900]],"#7a6800");
+
+L.polyline([
+[10.4100,77.3900],[10.4500,77.4300],[10.4900,77.4700],[10.5300,77.5100],
+[10.5700,77.5500],[10.6100,77.5900],[10.6500,77.6300],[10.6900,77.6700],
+[10.7300,77.7100],[10.7700,77.7500],[10.8100,77.7900],[10.8500,77.8300],
+[10.8900,77.8800],[10.9300,77.9400],[10.9600,78.0000],[10.9600,78.0800]
+],{color:"#4d4300",weight:4,opacity:.9,dashArray:"2 9"}).addTo(map);
+
+/* =====================================================
+   OFFICIAL CPCB LINKED DATA
+   Values are station ranges from CPCB 2023 where available.
+   Velocity is NOT a CPCB field; it is separately modelled.
+===================================================== */
+
+const sectionData=[
+{
+ name:"Talakaveri",
+ coords:[12.383,75.555], risk:"low",
+ description:"Cauvery source region in the Brahmagiri range of the Western Ghats.",
+ story:"A low-risk source-zone example. The focus is protection of the headwaters and maintaining upstream ecological integrity.",
+ cpcb:"CPCB-linked upper-basin monitoring reference.",
+ DO:"8.6 mg/L",temp:"20°C",ph:"7.9",bod:"1.0 mg/L",
+ velocity:1.10, mining:"LOW",upstream:"LOW",overlap:false,bedTemp:"22°C"
+},
+{
+ name:"Kodagu Region",
+ coords:[12.42,76.05], risk:"medium",
+ description:"Upper Cauvery landscape where catchment condition and runoff can influence river health.",
+ story:"Catchment disturbance in this region can become a downstream ecological pressure.",
+ cpcb:"CPCB-linked upper Cauvery monitoring reference.",
+ DO:"7.8 mg/L",temp:"22°C",ph:"7.7",bod:"1.5 mg/L",
+ velocity:0.65, mining:"MODERATE",upstream:"MODERATE",overlap:false,bedTemp:"22°C"
+},
+{
+ name:"Mysuru / KRS Region",
+ coords:[12.42,76.57], risk:"medium",
+ description:"Upper-middle Cauvery section influenced by water regulation and human pressure.",
+ story:"This section demonstrates how regulation and human pressure can modify ecological conditions.",
+ cpcb:"CPCB-linked KRS / Mysuru monitoring reference.",
+ DO:"7.2 mg/L",temp:"24°C",ph:"7.6",bod:"2.0 mg/L",
+ velocity:0.60, mining:"MODERATE",upstream:"MODERATE",overlap:false,bedTemp:"23°C"
+},
+{
+ name:"Shivanasamudra",
+ coords:[12.30,77.17], risk:"high",
+ description:"Important Cauvery gorge section associated with strong flow gradients and habitat pressure.",
+ story:"A high-risk demonstration zone where multiple ecological pressures may overlap.",
+ cpcb:"CPCB-linked Cauvery monitoring reference.",
+ DO:"6.1 mg/L",temp:"26°C",ph:"7.2",bod:"3.0 mg/L",
+ velocity:1.70, mining:"HIGH",upstream:"MODERATE",overlap:true,bedTemp:"24°C"
+},
+{
+ name:"Mettur Region",
+ coords:[11.81,77.80], risk:"high",
+ description:"Cauvery section associated with major regulation and downstream human pressure.",
+ story:"A high-risk demonstration zone where environmental stress and habitat disturbance can interact.",
+ cpcb:"CPCB-linked Mettur / downstream monitoring reference.",
+ DO:"5.4 mg/L",temp:"28°C",ph:"7.0",bod:"3.5 mg/L",
+ velocity:0.35, mining:"HIGH",upstream:"HIGH",overlap:true,bedTemp:"25°C"
+},
+{
+ name:"Delta / Poompuhar",
+ coords:[11.15,79.85], risk:"medium",
+ description:"Coastal delta region where the Cauvery system reaches the Bay of Bengal.",
+ story:"The delta represents the final stage of the river system, including distributary channels and coastal discharge.",
+ cpcb:"CPCB-linked downstream delta monitoring reference.",
+ DO:"7.0 mg/L",temp:"27°C",ph:"7.5",bod:"2.5 mg/L",
+ velocity:0.25, mining:"MODERATE",upstream:"MODERATE",overlap:false,bedTemp:"27°C"
+}
+];
+
+/* =====================================================
+   MONITORING SITE MARKERS
+===================================================== */
+
+const markers=[];
+function markerColor(risk){return risk==="low"?"#32e875":risk==="medium"?"#ffc21a":"#ff3d61"}
+
+sectionData.forEach((site,index)=>{
+    const marker=L.circleMarker(site.coords,{
+        radius:9,color:"#fff",weight:3,fillColor:markerColor(site.risk),fillOpacity:1
+    }).addTo(map);
+    marker.bindTooltip(site.name,{direction:"top"});
+    marker.bindPopup(`<div class="popup-title">${site.name}</div>
+    <div class="popup-risk" style="color:${markerColor(site.risk)}">● ${site.risk.toUpperCase()} RISK</div>
+    <br>Click to inspect this section.`);
+    marker.on("click",()=>selectSection(index,site.coords,false));
+    markers.push(marker);
+});
+
+/* =====================================================
+   SELECT / UPDATE PANEL
+===================================================== */
+
+let selectedPointMarker=null;
+
+function velocityAssessment(v){
+    if(v<0.4) return {label:"🔴 SPAWNING CANNOT TAKE PLACE",cls:"red",suit:"Unsuitable"};
+    if(v>=0.4 && v<=0.7) return {label:"🟡 MODERATE SUITABILITY FOR SPAWNING",cls:"orange",suit:"Moderate"};
+    if(v>=0.8 && v<=1.5) return {label:"🟢 HIGH SUITABILITY FOR SPAWNING",cls:"green",suit:"High"};
+    if(v>2.2) return {label:"🔴 SPAWNING CANNOT TAKE PLACE",cls:"red",suit:"Unsuitable"};
+    return {label:"🟠 LOWER SUITABILITY / HIGH-FLOW CONDITIONS",cls:"orange",suit:"Lower"};
+}
+
+function riskClassFromAudit(site){
+    if(site.mining==="HIGH" || site.overlap) return "high";
+    if(site.mining==="MODERATE") return "medium";
+    return site.risk;
+}
+
+function selectSection(index,clickedCoords,isMapClick){
+    const site=sectionData[index];
+    const va=velocityAssessment(site.velocity);
+
+    document.getElementById("selectionType").textContent=isMapClick?"SELECTED RIVER SECTION":"SELECTED MONITORING SITE";
+    document.getElementById("siteName").textContent=site.name;
+    document.getElementById("siteDescription").textContent=site.description;
+
+    const badge=document.getElementById("riskBadge");
+    const finalRisk=site.risk;
+    badge.className="risk "+finalRisk;
+    badge.textContent="● "+finalRisk.toUpperCase()+" RISK";
+
+    document.getElementById("doValue").textContent=site.DO;
+    document.getElementById("tempValue").textContent=site.temp;
+    document.getElementById("phValue").textContent=site.ph;
+    document.getElementById("bodValue").textContent=site.bod;
+
+    document.getElementById("velocityValue").textContent=site.velocity.toFixed(2);
+    const vs=document.getElementById("velocityStatus");
+    vs.textContent=va.label;
+    vs.className="velocity-tag "+va.cls;
+
+    document.getElementById("locationStory").textContent=site.story+" "+site.cpcb;
+
+    const integrity=document.getElementById("habitatIntegrity");
+    const mining=document.getElementById("miningRisk");
+    const local=document.getElementById("localMining");
+    const upstream=document.getElementById("upstreamMining");
+    const overlap=document.getElementById("overlapStatus");
+
+    document.getElementById("bedTemp").textContent=site.bedTemp;
+
+    if(site.overlap || site.mining==="HIGH"){
+        integrity.textContent="AT RISK"; integrity.className="red";
+        mining.textContent="HIGH"; mining.className="red";
+        local.textContent="HIGH"; local.className="red";
+        overlap.textContent=site.overlap?"FLAGGED":"NOT FLAGGED"; overlap.className=site.overlap?"red":"green";
+    }else if(site.mining==="MODERATE"){
+        integrity.textContent="MONITOR"; integrity.className="orange";
+        mining.textContent="MODERATE"; mining.className="orange";
+        local.textContent="MODERATE"; local.className="orange";
+        overlap.textContent="NOT FLAGGED"; overlap.className="green";
+    }else{
+        integrity.textContent="STABLE"; integrity.className="green";
+        mining.textContent="LOW"; mining.className="green";
+        local.textContent="LOW"; local.className="green";
+        overlap.textContent="NOT FLAGGED"; overlap.className="green";
+    }
+
+    const banner=document.getElementById("auditBanner");
+    const bt=document.getElementById("auditBannerTitle");
+    const bx=document.getElementById("auditBannerText");
+
+    if(site.overlap){
+        banner.className="audit-banner bad";
+        bt.textContent="🔴 HABITAT / MINING CONFLICT ZONE";
+        bx.textContent="The selected section overlaps the project's Mahseer-habitat and mining-monitoring layers. Treat this as a priority monitoring flag.";
+    }else if(site.mining==="MODERATE"){
+        banner.className="audit-banner warn";
+        bt.textContent="🟠 MONITORING ZONE";
+        bx.textContent="The selected section has moderate mapped pressure. Continue monitoring riverbed disturbance and habitat condition.";
+    }else{
+        banner.className="audit-banner";
+        bt.textContent="🟢 PROTECTED / SUITABLE ZONE";
+        bx.textContent="The selected section is comparatively stable in this project's audit model.";
+    }
+
+    document.getElementById("logicResult").innerHTML=`
+        <b>Spawning suitability:</b> ${va.suit}
+        <br><br>
+        ${va.suit==="High"?"🟢 Flow is inside the project's preferred spawning band.":
+          va.suit==="Moderate"?"🟡 Flow is within the moderate suitability band.":
+          va.suit==="Unsuitable"?"🔴 Flow is outside the spawning range.":
+          "🟠 Flow is outside the preferred high-suitability band."}
+        <br><br>
+        <span style="color:#8ea4ae">Water-quality reference: ${site.cpcb}</span>
+    `;
+
+    if(selectedPointMarker) map.removeLayer(selectedPointMarker);
+    selectedPointMarker=L.circleMarker(clickedCoords||site.coords,{
+        radius:7,color:"#fff",weight:2,fillColor:"#54e5ff",fillOpacity:1
+    }).addTo(map);
+
+    if(isMapClick){
+        selectedPointMarker.bindTooltip("Selected Cauvery section",{direction:"top"}).openTooltip();
+        map.flyTo(clickedCoords,9,{duration:.8});
+    }else{
+        map.flyTo(site.coords,8.5,{duration:1.0});
+    }
+}
+
+/* =====================================================
+   CLICK ANYWHERE ON THE CAUVERY
+===================================================== */
+
+function distanceKm(a,b){
+    const R=6371;
+    const p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180;
+    const dp=(b.lat-a.lat)*Math.PI/180;
+    const dl=(b.lng-a.lng)*Math.PI/180;
+    const x=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+    return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+function nearestRiverIndex(latlng){
+    let best=Infinity,bestIndex=0;
+    cauveryRoute.forEach((p,i)=>{
+        const d=distanceKm(latlng,{lat:p[0],lng:p[1]});
+        if(d<best){best=d;bestIndex=i}
+    });
+    return {distance:best,index:bestIndex};
+}
+
+function sectionForRouteIndex(i){
+    if(i<=5) return 0;
+    if(i<=10) return 1;
+    if(i<=20) return 2;
+    if(i<=26) return 3;
+    if(i<=31) return 4;
+    return 5;
+}
+
+map.on("click",function(e){
+    const near=nearestRiverIndex(e.latlng);
+
+    if(near.distance>35){
+        document.getElementById("locationStory").textContent=
+            "Click directly on or close to the blue Cauvery river line to inspect the nearest river section.";
+        return;
+    }
+
+    const idx=sectionForRouteIndex(near.index);
+    selectSection(idx,e.latlng,true);
+});
+
+/* =====================================================
+   RAIN
+===================================================== */
+
+function updateRain(value){
+    value=Number(value);
+    document.getElementById("rainNumber").textContent=value;
+    const status=document.getElementById("rainStatus");
+    if(value<5){status.textContent="🟢 NORMAL";status.className="rain-status good"}
+    else if(value<=20){status.textContent="🟡 MODERATE RAIN";status.className="rain-status warn"}
+    else if(value<=50){status.textContent="🟠 WARNING — HEAVY RAIN";status.className="rain-status warn"}
+    else{status.textContent="🔴 CRITICAL — EXTREME RAIN";status.className="rain-status bad"}
+}
+
+/* =====================================================
+   RIVER TRACE
+===================================================== */
+
+let journeyMarker=null;
+function animateJourney(){
+    let i=0;
+    if(journeyMarker) map.removeLayer(journeyMarker);
+    journeyMarker=L.circleMarker(cauveryRoute[0],{
+        radius:8,color:"#fff",weight:3,fillColor:"#54e5ff",fillOpacity:1
+    }).addTo(map);
+    map.flyTo(cauveryRoute[0],8,{duration:1});
+    const interval=setInterval(()=>{
+        if(i>=cauveryRoute.length){
+            clearInterval(interval);
+            document.getElementById("journeyText").textContent="🌊 Journey complete — Bay of Bengal";
+            return;
         }
+        journeyMarker.setLatLng(cauveryRoute[i]);
+        i++;
+    },90);
+}
 
-        function sim() {
-            const s = document.getElementById('sandIn').checked;
-            const u = document.getElementById('upIn').checked;
-            assessArea(map.getCenter().lat, map.getCenter().lng, s, u);
-        }
+/* =====================================================
+   INFO BUTTONS
+===================================================== */
 
-        function toggleTheme() {
-            const html = document.documentElement;
-            const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', theme);
+function showTributaries(){
+    const box=document.getElementById("extraInfo");
+    box.style.display="block";
+    box.innerHTML=`
+    <div class="section-title">🌿 FOUR FEATURED TRIBUTARIES</div>
+    <p class="description">
+    <b style="color:#008b76">KABINI</b><br>
+    Flows through the Wayanad–Karnataka landscape before joining the Cauvery near Tirumakudalu Narasipura.
+    <br><br>
+    <b style="color:#b65b00">MOYAR</b><br>
+    Flows through the Mudumalai and Sathyamangalam landscape and connects into the Bhavani system.
+    <br><br>
+    <b style="color:#4b2499">BHAVANI</b><br>
+    Flows through the Nilgiri and western Tamil Nadu region before joining the Cauvery at Bhavani.
+    <br><br>
+    <b style="color:#7a6800">PAMBAR</b><br>
+    Forms part of the downstream Amaravathi system before reaching the Cauvery system.
+    <br><br>
+    <b>Why tributaries matter:</b><br>
+    Tributaries connect different landscapes. Changes in an upstream catchment can influence downstream flow,
+    sediment, temperature and water quality.
+    </p>`;
+    box.scrollIntoView({behavior:"smooth"});
+}
+
+function showJourneyInfo(){
+    const box=document.getElementById("extraInfo");
+    box.style.display="block";
+    box.innerHTML=`
+    <div class="section-title">🌊 CAUVERY — SOURCE TO SEA</div>
+    <p class="description">
+    <b>1. TALAKAVERI</b><br>The Cauvery begins at Talakaveri in the Brahmagiri range.
+    <br><br>↓<br><br>
+    <b>2. UPPER CAUVERY</b><br>The river flows through Kodagu and the Mysuru region.
+    <br><br>↓<br><br>
+    <b>3. KABINI CONFLUENCE</b><br>Kabini joins the Cauvery near Tirumakudalu Narasipura.
+    <br><br>↓<br><br>
+    <b>4. MEKEDATU / SHIVANASAMUDRA</b><br>The Cauvery continues through major gorge and waterfall sections.
+    <br><br>↓<br><br>
+    <b>5. METTUR</b><br>The river continues through the Mettur region.
+    <br><br>↓<br><br>
+    <b>6. BHAVANI CONFLUENCE</b><br>Bhavani joins the Cauvery near Bhavani.
+    <br><br>↓<br><br>
+    <b>7. KARUR REGION</b><br>The Amaravathi system joins the Cauvery in the Karur region.
+    <br><br>↓<br><br>
+    <b>8. CAUVERY DELTA</b><br>The river divides into distributary channels across the delta.
+    <br><br>↓<br><br>
+    <b>9. BAY OF BENGAL</b><br>The Cauvery system ultimately reaches the Bay of Bengal.
+    </p>`;
+    box.scrollIntoView({behavior:"smooth"});
+}
+
+/* =====================================================
+   EMOJI MARKERS
+===================================================== */
+
+function emojiMarker(emoji,size=22){
+    return L.divIcon({
+        className:"",
+        html:`<div class="eco-marker" style="font-size:${size}px">${emoji}</div>`,
+        iconSize:[30,30],iconAnchor:[15,15]
+    });
+}
+
+function addEcoMarker(lat,lng,emoji,title,html,size=22){
+    const marker=L.marker([lat,lng],{icon:emojiMarker(emoji,size)}).addTo(map);
+    marker.bindTooltip(title,{direction:"top"});
+    marker.bindPopup(`<div class="popup-title">${emoji} ${title}</div><div class="popup-list">${html}</div>`);
+    return marker;
+}
+
+function addFish(lat,lng,title,html){
+    const marker=L.marker([lat,lng],{
+        icon:L.divIcon({
+            className:"",
+            html:`<div class="fish-group"><span>🐠</span><span>🐠</span></div>`,
+            iconSize:[36,18],iconAnchor:[18,9]
+        })
+    }).addTo(map);
+    marker.bindTooltip(title,{direction:"top"});
+    marker.bindPopup(`<b>🐠 Orange-finned Mahseer</b><br><br><b>Population / habitat zone</b><br><br>${html}<br><br><i>Population / habitat zone, not a spawning-site marker.</i>`);
+    return marker;
+}
+
+/* =====================================================
+   MAHSEER + ECO MARKERS
+===================================================== */
+
+addFish(12.2850,77.4350,"Orange-finned Mahseer • Mekedatu / Sangama / Galibore",
+"Middle gorge zone: Mekedatu, Sangama and Galibore.<br><br>Cauvery Wildlife Sanctuary, Karnataka.");
+
+addFish(11.5000,76.8000,"Orange-finned Mahseer • Moyar River Valley",
+"Moyar River Valley.<br><br>Mudumalai Tiger Reserve and Sathyamangalam forest landscape, Tamil Nadu.");
+
+addFish(10.1700,77.1800,"Orange-finned Mahseer • Upper Pambar",
+"Upper Pambar river stretch in the Devikulam hills, Idukki district, Kerala.");
+
+addEcoMarker(10.960,78.050,"⛏️","Karur River-Bed Cluster",
+"Monitoring cluster covering Vangal, Mayanur, Noyyal, Mallampalayam, Nanniyur, Thottakurichi, Maravapalayam, Seventhipalayam and Mettupalayam in the Karur region.");
+
+addEcoMarker(10.900,78.700,"⛏️","Trichy / Kollidam River-Bed Zone",
+"Monitoring zone around Kulithalai, Melur near Srirangam and the Trichy–Namakkal corridor.");
+
+addEcoMarker(12.424,76.570,"⛏️","Krishna Raja Sagara (KRS)",
+"Cauvery monitoring point at the Krishna Raja Sagara region, Karnataka.");
+
+addEcoMarker(12.235,76.895,"⛏️","T-Narasipura",
+"Cauvery–Kapila region near T-Narasipura, Karnataka.");
+
+addEcoMarker(11.103,79.655,"🏖️","Mayiladuthurai District — Coastal Delta",
+"Coastal delta monitoring reference for the Mayiladuthurai district.");
+
+addEcoMarker(12.190,77.010,"⛏️","Muthathi River Bank",
+"Muthathi river-bank monitoring zone in the Cauvery landscape, Karnataka.");
+
+addEcoMarker(12.275,77.130,"⛏️","Halaguru Stretch",
+"Halaguru-area Cauvery monitoring stretch, Karnataka.");
+
+addEcoMarker(12.285,77.435,"⚠️","Galibore → Mekedatu Overlap",
+"Mahseer habitat / spawning-refuge area overlapping the project's sand-mining monitoring concern. Impact focus: riverbed substrate disturbance and high-flow rocky habitat.",21);
+
+addEcoMarker(12.235,76.895,"⚠️","T-Narasipura Mahseer / Mining Overlap",
+"Potential ecological conflict zone around the T-Narasipura and Kapila–Cauvery confluence area. Impact focus: riverbank and bed disturbance along a fish-migration corridor.",21);
+
+/* =====================================================
+   INITIAL STATE
+===================================================== */
+
+selectSection(0,sectionData[0].coords,false);
+updateRain(24);
+
+// FIXED SEARCH: Now targets specific Indian administrative boundaries
+function searchLocationFromNative(query) {
+    console.log("Searching for:", query);
+    const cleanQuery = encodeURIComponent(query);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${cleanQuery}+India`)
+    .then(res => res.json()).then(data => {
+        if(data.length > 0) {
+            const lat = parseFloat(data[0].lat), lng = parseFloat(data[0].lon);
+            map.flyTo([lat, lng], 10, { duration: 1.5 });
+        } else {
+            alert("Location not found. Try 'Moyar River' or 'Kodagu'.");
         }
-    </script>
+    }).catch(err => alert("Search error. Check network."));
+}
+
+</script>
 </body>
 </html>
