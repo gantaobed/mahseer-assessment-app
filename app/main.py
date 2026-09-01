@@ -132,6 +132,32 @@ async def species_info():
     </body></html>"""
     return HTMLResponse(content=html)
 
+@app.get("/notifications")
+async def get_notifications():
+    # Real-world logic would check live telemetry for all zones
+    # For now, we simulate scientific triggers for Zone 7 (Sangama) and High-Value Zones
+    now = datetime.now()
+    return [
+        {
+            "id": 1,
+            "title": "🔴 Critical Habitat Conflict",
+            "message": "Orange Fin Mahseer spawning zone detected under active sand mining pressure in Zone 7 (Sangama Stretch).",
+            "what": "Active illegal extraction in primary spawning refuge.",
+            "why": "High-demand for river sand is overriding ecological protection protocols.",
+            "next": "Irreversible damage to the gravel beds will prevent egg attachment.",
+            "done": "Dispatch enforcement to Sangama and pause all upstream permits immediately."
+        },
+        {
+            "id": 2,
+            "title": "⚠️ Sediment Transport Alert",
+            "message": "Rising flow may transport mining sediment into high-value spawning zones.",
+            "what": "Turbidity levels spiking downstream of mining clusters.",
+            "why": "Increased rainfall (25mm+) is washing loose silt from illegal pits into the main channel.",
+            "next": "Fine silt will smother existing eggs, causing mass suffocation.",
+            "done": "Deploy silt curtains near monitoring stations and audit upstream extraction pits."
+        }
+    ]
+
 frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 @app.get("/")
 async def read_index(): return FileResponse(os.path.join(frontend_path, "index.html"))
