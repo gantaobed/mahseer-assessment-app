@@ -314,7 +314,10 @@ button:hover{background:#1b6078}
     </div>
     <div style="margin-top:12px"><input id="rainSlider" type="range" min="0" max="80" value="24" oninput="updateRain(this.value)"></div>
     <div class="ideal" style="line-height:1.7">
-        0–4.99 mm → Normal<br>5–20 mm → Moderate<br>20.01–50 mm → Heavy rain<br>&gt;50 mm → Extreme rain
+        0–4.99 mm → Very Low (Chokes beds) ❌<br>
+        5–20 mm → Moderate (Weak support) ⚠️<br>
+        20–50 mm → Heavy (Best condition) ✅<br>
+        &gt;50 mm → Extreme (Pressure washer) 🔴
     </div>
 </div>
 
@@ -717,10 +720,22 @@ function updateRain(value){
     value=Number(value);
     document.getElementById("rainNumber").textContent=value;
     const status=document.getElementById("rainStatus");
-    if(value<5){status.textContent="🟢 NORMAL";status.className="rain-status good"}
-    else if(value<=20){status.textContent="🟡 MODERATE RAIN";status.className="rain-status warn"}
-    else if(value<=50){status.textContent="🟠 WARNING — HEAVY RAIN";status.className="rain-status warn"}
-    else{status.textContent="🔴 CRITICAL — EXTREME RAIN";status.className="rain-status bad"}
+    if(value<5){
+        status.textContent="🟤 VERY LOW — BEDS CHOKED ❌";
+        status.className="rain-status bad";
+    }
+    else if(value<=20){
+        status.textContent="🟡 MODERATE — WEAK SUPPORT ⚠️";
+        status.className="rain-status warn";
+    }
+    else if(value<=50){
+        status.textContent="🟢 HEAVY — BEST CONDITION ✅";
+        status.className="rain-status good";
+    }
+    else{
+        status.textContent="🔴 EXTREME — PRESSURE WASHER";
+        status.className="rain-status bad";
+    }
 }
 
 /* =====================================================
