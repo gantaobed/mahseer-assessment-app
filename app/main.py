@@ -64,20 +64,38 @@ def assess_habitat(data: EnvironmentData):
                CAUVERY_BOUNDS["lng_min"] <= data.lng <= CAUVERY_BOUNDS["lng_max"]
 
     tel = fetch_telemetry(data.lat, data.lng)
+    rain = tel.get("rain", 0.0)
     mining_prob = 85 if 12.1 < data.lat < 12.4 else (15 if data.upstream_mining else (50 if data.sand_mining else 0))
 
     range_audit = "PASSED" if in_range else "FAILED"
     basin_audit = "Kaveri Basin System" if in_range else "Outside Endemic Domain"
-    constraint_audit = "STABLE" if (mining_prob == 0 and 19 <= tel["temp"] <= 25) else "VIOLATED"
+
+    # Updated Rainfall Scientific Logic (IMD/WRIS Pattern)
+    if rain < 5:
+        rain_status = "CHOKED: Weak flow chokes spawning gravel with silt."
+        rain_color = "red"
+    elif rain <= 20:
+        rain_status = "WEAK SUPPORT: Moderate flow, marginal trigger."
+        rain_color = "yellow"
+    elif rain <= 50:
+        rain_status = "BEST CONDITION: Optimal spawning migration trigger."
+        rain_color = "green"
+    else:
+        rain_status = "PRESSURE WASHER: Extreme rain cleans gravel/cobble beds."
+        rain_color = "green"
+
+    constraint_audit = "STABLE" if (mining_prob == 0 and 18 <= tel["temp"] <= 25 and rain >= 20) else "VIOLATED"
 
     if not in_range:
         color, alert = "gray", f"🔴 DOMAIN ERROR: {SPECIES_FACTS['name']} is NOT found here. Restricted to Kaveri basin."
     elif mining_prob > 0:
         color, alert = "red", f"⛔ ILLEGAL MINING ZONE: Spawning strictly prohibited. Mining Risk: {mining_prob}%"
+    elif rain < 5:
+        color, alert = "red", f"🟤 DROUGHT ALERT: {rain}mm/day. {rain_status}"
     elif not constraint_audit == "STABLE":
-        color, alert = "red", f"🔴 CRITICAL: Thermal Spike ({tel['temp']}°C). Eggs rot or hatch prematurely (Ideal: 18-24°C)."
+        color, alert = "yellow", f"🟡 MONITOR: {rain_status} Temp: {tel['temp']}°C"
     else:
-        color, alert = "green", "🟢 PROTECTED SANCTUARY: 0% Mining detected. Verified Spawning Site."
+        color, alert = "green", f"🟢 PROTECTED SANCTUARY: IMD Data confirms {rain}mm/day. {rain_status}"
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -87,8 +105,8 @@ def assess_habitat(data: EnvironmentData):
 
     return {
         "color": color, "alert": alert,
-        "audit": {"range": range_audit, "basin": basin_audit, "constraints": constraint_audit},
-        "details": {"temp": tel["temp"], "mining": mining_prob}
+        "audit": {"range": range_audit, "basin": basin_audit, "constraints": constraint_audit, "rain_source": "IMD/WRIS/State Networks"},
+        "details": {"temp": tel["temp"], "mining": mining_prob, "rain": rain}
     }
 
 @app.get("/history-view")
